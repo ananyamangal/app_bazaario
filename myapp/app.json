@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Bazaario",
+    "slug": "myapp",
+    "scheme": "bazaario",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.bazaario.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Bazaario needs camera access for video calls with shops.",
+        "NSMicrophoneUsageDescription": "Bazaario needs microphone access for voice and video calls."
+      }
+    },
+    "android": {
+      "package": "com.bazaario.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.BLUETOOTH"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-square.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "97598083-d5ed-4400-9d4d-aeab04010c9a"
+      }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "softwareKeyboardLayoutMode": "resize"
+          }
+        }
+      ]
+    ]
+  }
+}
