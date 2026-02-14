@@ -13,6 +13,8 @@ export type CartItem = {
   price: number;
   quantity: number;
   image?: string;
+  /** Call-invoice expiry (ISO string). Customer has 15 min to place order. */
+  invoiceExpiresAt?: string;
 };
 
 type CartContextValue = {

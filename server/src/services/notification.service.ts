@@ -91,9 +91,18 @@ export async function sendPushNotification(
   }
 }
 
+/** Set by socket.service so we can emit new_notification in real time without circular dependency */
+let socketEmit: ((userId: string, event: string, data: any) => void) | null = null;
+export function setNotificationSocketEmitter(
+  emit: (userId: string, event: string, data: any) => void
+): void {
+  socketEmit = emit;
+}
+
 /**
  * Create an in-app notification and send push to the user.
  * Use this for all notification types so they appear in the app and as push.
+ * Also emits new_notification via socket for real-time in-app updates.
  */
 export async function createAndSendNotification(
   userId: string,
@@ -103,7 +112,7 @@ export async function createAndSendNotification(
   data?: Record<string, string>
 ): Promise<void> {
   try {
-    await Notification.create({
+    const doc = await Notification.create({
       userId,
       type,
       title,
@@ -112,6 +121,21 @@ export async function createAndSendNotification(
       data: data || undefined,
     });
     await sendPushNotification(userId, { title, body, data });
+    if (socketEmit) {
+      const notification = doc.toObject ? doc.toObject() : doc;
+      socketEmit(userId, "new_notification", {
+        notification: {
+          _id: (notification as any)._id?.toString(),
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          isRead: notification.isRead,
+          data: notification.data,
+          createdAt: (notification as any).createdAt,
+          updatedAt: (notification as any).updatedAt,
+        },
+      });
+    }
   } catch (err) {
     console.error("[Notification] createAndSend error:", err);
   }

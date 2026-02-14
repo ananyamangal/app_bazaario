@@ -274,21 +274,26 @@ export default function MyOrdersScreen({ onBack }: Props) {
                 </View>
 
                 <View style={styles.itemsList}>
-                  {order.items.slice(0, 2).map((item, idx) => (
-                    <View key={idx} style={styles.itemRow}>
-                      {item.image ? (
-                        <Image source={{ uri: item.image }} style={styles.itemImage} />
-                      ) : (
-                        <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
-                          <Ionicons name="cube-outline" size={16} color={colors.mutedForeground} />
+                  {order.items.slice(0, 2).map((item, idx) => {
+                    const imageUri = item.image || (item as any).imageUrl || '';
+                    return (
+                      <View key={idx} style={styles.itemRow}>
+                        <View style={styles.itemImageWrap}>
+                          {imageUri ? (
+                            <Image source={{ uri: imageUri }} style={styles.itemImage} />
+                          ) : (
+                            <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
+                              <Ionicons name="image-outline" size={18} color={colors.mutedForeground} />
+                            </View>
+                          )}
                         </View>
-                      )}
-                      <Text style={styles.itemText} numberOfLines={1}>
-                        {item.name} × {item.quantity}
-                      </Text>
-                      <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
-                    </View>
-                  ))}
+                        <Text style={styles.itemText} numberOfLines={1}>
+                          {item.name} × {item.quantity}
+                        </Text>
+                        <Text style={styles.itemPrice}>₹{item.price * item.quantity}</Text>
+                      </View>
+                    );
+                  })}
                   {order.items.length > 2 && (
                     <Text style={styles.moreItems}>+{order.items.length - 2} more items</Text>
                   )}
@@ -493,8 +498,13 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '600' },
   itemsList: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 6, marginBottom: 6 },
   itemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  itemImage: { width: 28, height: 28, borderRadius: radius.sm, marginRight: 6 },
-  itemImagePlaceholder: { backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  itemImageWrap: { marginRight: 8 },
+  itemImage: { width: 40, height: 40, borderRadius: radius.sm },
+  itemImagePlaceholder: {
+    backgroundColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   itemText: { flex: 1, fontSize: 12, color: colors.foreground },
   itemPrice: { fontSize: 12, fontWeight: '600', color: colors.foreground },
   moreItems: { fontSize: 11, color: colors.mutedForeground, fontStyle: 'italic', marginTop: 2 },

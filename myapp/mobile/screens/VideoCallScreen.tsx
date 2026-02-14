@@ -24,6 +24,7 @@ import { Audio } from 'expo-av';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { useCall } from '../context/CallContext';
+import { useAuth } from '../context/AuthContext';
 import { apiPostAuth } from '../api/client';
 
 // Request camera and microphone permissions (required for video/voice call)
@@ -123,6 +124,7 @@ export default function VideoCallScreen({ onClose }: Props) {
   const insets = useSafeAreaInsets();
   const engineRef = useRef<any>(null);
 
+  const { user } = useAuth();
   const {
     callState,
     currentCall,
@@ -139,6 +141,8 @@ export default function VideoCallScreen({ onClose }: Props) {
     switchCamera,
   } = useCall();
 
+  // Customer: camera off by default. Seller: camera on.
+  const isCustomer = user?.role === 'customer';
   const [remoteUid, setRemoteUid] = useState<number | null>(null);
   const [invoiceItemName, setInvoiceItemName] = useState('');
   const [invoicePrice, setInvoicePrice] = useState('');
@@ -147,7 +151,7 @@ export default function VideoCallScreen({ onClose }: Props) {
   const [invoiceImageBase64, setInvoiceImageBase64] = useState<string | null>(null);
   const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
   const [isJoined, setIsJoined] = useState(false);
-  const [localVideoEnabled, setLocalVideoEnabled] = useState(true);
+  const [localVideoEnabled, setLocalVideoEnabled] = useState(!isCustomer);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const initStartedRef = useRef(false);
 
@@ -224,6 +228,14 @@ export default function VideoCallScreen({ onClose }: Props) {
           engine.enableInstantMediaRendering?.();
         } catch (_) {}
 
+        // Customer: start with camera off (mute local video)
+        if (isCustomer) {
+          try {
+            engine.muteLocalVideoStream(true);
+          } catch (_) {}
+          setLocalVideoEnabled(false);
+        }
+
         addDebugLog('Calling joinChannel...');
         const joinRet = engine.joinChannel(
           agoraConfig.token,
@@ -232,7 +244,7 @@ export default function VideoCallScreen({ onClose }: Props) {
           {
             clientRoleType: ClientRoleType?.ClientRoleBroadcaster,
             channelProfile: ChannelProfileType?.ChannelProfileCommunication,
-            publishCameraTrack: true,
+            publishCameraTrack: !isCustomer,
             publishMicrophoneTrack: true,
             autoSubscribeAudio: true,
             autoSubscribeVideo: true,
@@ -261,7 +273,7 @@ export default function VideoCallScreen({ onClose }: Props) {
         engineRef.current = null;
       }
     };
-  }, [agoraConfig]);
+  }, [agoraConfig, isCustomer]);
 
   const handleEndCall = async () => {
     await endCall();
@@ -294,19 +306,34 @@ export default function VideoCallScreen({ onClose }: Props) {
 
   const showPostCallForm = callState === 'ended' && currentCall?.isIncoming;
 
-  const handlePickInvoiceImage = async () => {
+  const pickInvoiceImageFromSource = async (useCamera: boolean) => {
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'Allow photo access to attach product image.');
-        return;
+      if (useCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission needed', 'Allow camera access to take a product photo.');
+          return;
+        }
+      } else {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission needed', 'Allow photo access to attach product image.');
+          return;
+        }
       }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+          });
       if (result.canceled || !result.assets[0]?.uri) return;
       const uri = result.assets[0].uri;
       setInvoiceImageUri(uri);
@@ -317,6 +344,14 @@ export default function VideoCallScreen({ onClose }: Props) {
     } catch (e) {
       Alert.alert('Error', 'Failed to pick image');
     }
+  };
+
+  const handlePickInvoiceImage = () => {
+    Alert.alert('Product image', 'Choose source', [
+      { text: 'Take photo', onPress: () => pickInvoiceImageFromSource(true) },
+      { text: 'Choose from gallery', onPress: () => pickInvoiceImageFromSource(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleSubmitInvoice = async () => {

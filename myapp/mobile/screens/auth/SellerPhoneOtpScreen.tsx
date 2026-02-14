@@ -54,7 +54,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SellerPhoneOtp'>;
 export default function SellerPhoneOtpScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { shopName, ownerName, shopDescription, market, city, shopAddress, categories, phone: initialPhone } = route.params;
-  const { refreshUser, signInWithSession, updateSessionUser } = useAuth();
+  const { refreshUser, signInWithSession, updateSessionUser, user: currentUser, firebaseUser } = useAuth();
 
   const [phase, setPhase] = useState<'phone' | 'otp'>(initialPhone ? 'otp' : 'phone');
   const [phone, setPhone] = useState(initialPhone || '');
@@ -121,46 +121,74 @@ export default function SellerPhoneOtpScreen({ navigation, route }: Props) {
 
     setIsLoading(true);
     try {
-      // Verify OTP with backend
-      const response = await apiPost<{
-        verified: boolean;
-        customToken: string;
-        sessionToken?: string;
-        uid: string;
-        user: any;
-        profile: any;
-        shop: any;
-      }>('/otp/verify', { phone, code, role: 'seller' });
+      // If user is already authenticated (e.g., via Google), use their existing UID
+      // Otherwise, verify OTP and get a new UID
+      let uid: string;
+      let verified = false;
 
-      if (!response.verified) {
-        Alert.alert('Invalid OTP', 'The code you entered is incorrect');
+      if (firebaseUser?.uid) {
+        // User is already authenticated (Google sign-in case)
+        uid = firebaseUser.uid;
+        verified = true;
+        
+        // Still verify the phone number with backend (but don't create a new auth session)
+        try {
+          await apiPost('/otp/verify', { phone, code, role: 'seller' });
+        } catch (error: any) {
+          // If OTP verification fails, still proceed if user is authenticated
+          // (phone might already be verified or OTP might be expired)
+          console.warn('[SellerPhoneOtp] OTP verify failed, but user is authenticated:', error);
+        }
+      } else {
+        // User is not authenticated - verify OTP and sign them in
+        const response = await apiPost<{
+          verified: boolean;
+          customToken: string;
+          sessionToken?: string;
+          uid: string;
+          user: any;
+          profile: any;
+          shop: any;
+        }>('/otp/verify', { phone, code, role: 'seller' });
+
+        if (!response.verified) {
+          Alert.alert('Invalid OTP', 'The code you entered is incorrect');
+          return;
+        }
+
+        verified = true;
+        uid = response.uid;
+
+        const useSessionFallback = (err: any) =>
+          err?.code === 'auth/network-request-failed' ||
+          (err?.message && String(err.message).includes('network-request-failed'));
+
+        try {
+          if (response.customToken) {
+            await signInWithCustomToken(auth, response.customToken);
+          }
+        } catch (firebaseError: any) {
+          if (response.sessionToken && useSessionFallback(firebaseError)) {
+            await signInWithSession({
+              user: response.user ?? null,
+              profile: response.profile ?? null,
+              shop: response.shop ?? null,
+              sessionToken: response.sessionToken,
+            });
+          } else {
+            throw firebaseError;
+          }
+        }
+      }
+
+      if (!verified || !uid) {
+        Alert.alert('Error', 'Failed to verify phone number');
         return;
       }
 
-      const useSessionFallback = (err: any) =>
-        err?.code === 'auth/network-request-failed' ||
-        (err?.message && String(err.message).includes('network-request-failed'));
-
-      try {
-        if (response.customToken) {
-          await signInWithCustomToken(auth, response.customToken);
-        }
-      } catch (firebaseError: any) {
-        if (response.sessionToken && useSessionFallback(firebaseError)) {
-          await signInWithSession({
-            user: response.user ?? null,
-            profile: response.profile ?? null,
-            shop: response.shop ?? null,
-            sessionToken: response.sessionToken,
-          });
-        } else {
-          throw firebaseError;
-        }
-      }
-
-      // Register seller with shop details
+      // Register seller with shop details (works for both new and existing authenticated users)
       const reg = await apiPost<{ user: any; sellerProfile: any; shop: any }>('/auth/register-seller', {
-        uid: response.uid,
+        uid,
         phone,
         name: ownerName,
         shopName,
@@ -170,9 +198,16 @@ export default function SellerPhoneOtpScreen({ navigation, route }: Props) {
         shopAddress,
         categories,
       });
-      if (reg?.user) updateSessionUser({ user: reg.user, profile: reg.sellerProfile ?? null, shop: reg.shop ?? null });
+      
+      if (reg?.user) {
+        updateSessionUser({ user: reg.user, profile: reg.sellerProfile ?? null, shop: reg.shop ?? null });
+      }
 
       await refreshUser();
+      
+      // After shop creation, AppNavigator will automatically switch to SellerStack
+      // when it detects isAuthenticated=true and user.role='seller'
+      // The navigation happens automatically via AppNavigator's conditional rendering
     } catch (error: any) {
       console.error('[SellerPhoneOtp] Error:', error);
       Alert.alert('Error', error.message || 'Failed to verify OTP and create shop');

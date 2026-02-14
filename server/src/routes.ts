@@ -3056,6 +3056,13 @@ router.post("/orders", authenticate, async (req: Request, res: Response) => {
         if (callInvoice.shopId.toString() !== shopId) {
           return res.status(400).json({ message: "Call invoice shop does not match order shop" });
         }
+        const expiresAt = (callInvoice as any).expiresAt;
+        // Missing expiresAt = old invoice (before 15-min rule); treat as expired
+        if (!expiresAt || new Date(expiresAt) < new Date()) {
+          return res.status(400).json({
+            message: "This invoice has expired. You have 15 minutes from when the seller sent it to place the order. Please request a new invoice from the seller.",
+          });
+        }
         name = callInvoice.itemName;
         price = callInvoice.price;
         image = callInvoice.imageUrl || "";
@@ -4046,6 +4053,7 @@ router.post("/calls/:callId/invoice", authenticate, async (req: Request, res: Re
       return res.status(400).json({ message: "Invoice already submitted for this call" });
     }
 
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
     const invoice = await CallInvoice.create({
       callId: call._id,
       shopId: call.shopId,
@@ -4056,6 +4064,7 @@ router.post("/calls/:callId/invoice", authenticate, async (req: Request, res: Re
       price: priceNum,
       imageUrl,
       quantity: qty,
+      expiresAt,
     });
 
     emitToUser(call.customerId.toString(), "invoice_ready", {
@@ -4066,6 +4075,7 @@ router.post("/calls/:callId/invoice", authenticate, async (req: Request, res: Re
       price: invoice.price,
       imageUrl: invoice.imageUrl,
       quantity: invoice.quantity,
+      expiresAt: expiresAt.toISOString(),
     });
 
     return res.status(201).json({

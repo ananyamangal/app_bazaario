@@ -6,7 +6,8 @@ console.log("PORT FROM ENV:", process.env.PORT);
 import { createServer } from "http";
 import app from "./app";
 import "./config/db";
-import { initializeSocketServer } from "./services/socket.service";
+import { initializeSocketServer, emitToUser } from "./services/socket.service";
+import { setNotificationSocketEmitter } from "./services/notification.service";
 
 const PORT = process.env.PORT || 5000;
 
@@ -15,6 +16,7 @@ const httpServer = createServer(app);
 
 // Initialize Socket.io
 initializeSocketServer(httpServer);
+setNotificationSocketEmitter(emitToUser);
 
 httpServer.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

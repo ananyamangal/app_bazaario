@@ -10,9 +10,13 @@ export interface ICallInvoice extends Document {
   price: number;
   imageUrl: string;
   quantity: number;
+  /** Customer must place order within 15 minutes or invoice expires */
+  expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
+
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 const CallInvoiceSchema = new Schema<ICallInvoice>(
   {
@@ -25,6 +29,7 @@ const CallInvoiceSchema = new Schema<ICallInvoice>(
     price: { type: Number, required: true },
     imageUrl: { type: String, default: "" },
     quantity: { type: Number, required: true, min: 1 },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true }
 );

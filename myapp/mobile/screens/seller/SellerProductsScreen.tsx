@@ -161,19 +161,33 @@ export default function SellerProductsScreen({ onOpenConversations }: Props = {}
     setModalVisible(true);
   }
 
-  async function handlePickImage() {
+  async function pickImageFromSource(useCamera: boolean) {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission required', 'We need access to your photos to upload product images.');
-        return;
+      if (useCamera) {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission required', 'We need camera access to take product photos.');
+          return;
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission required', 'We need access to your photos to upload product images.');
+          return;
+        }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-      });
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.7,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.7,
+          });
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
@@ -182,13 +196,10 @@ export default function SellerProductsScreen({ onOpenConversations }: Props = {}
 
       setUploadingImage(true);
 
-      // Convert to base64 and upload to get URL
       const base64 = await FileSystem.readAsStringAsync(asset.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      // For now, use a placeholder approach - in production you'd upload to cloudinary
-      // We'll store the local URI for display and upload when saving
       const dataUri = `data:image/jpeg;base64,${base64}`;
       setFormImages((prev) => [...prev, dataUri]);
     } catch (error) {
@@ -197,6 +208,14 @@ export default function SellerProductsScreen({ onOpenConversations }: Props = {}
     } finally {
       setUploadingImage(false);
     }
+  }
+
+  function handlePickImage() {
+    Alert.alert('Add product image', 'Choose source', [
+      { text: 'Take photo', onPress: () => pickImageFromSource(true) },
+      { text: 'Choose from gallery', onPress: () => pickImageFromSource(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   function handleRemoveImage(index: number) {

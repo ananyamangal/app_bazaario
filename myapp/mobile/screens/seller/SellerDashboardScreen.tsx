@@ -293,22 +293,36 @@ export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOp
     }
   };
 
-  // Upload banner
-  const handleUploadBanner = async () => {
+  const uploadBannerFromSource = async (useCamera: boolean) => {
     if (!shopId) return;
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission required', 'We need access to your photos to upload a banner.');
-        return;
+      if (useCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission required', 'We need camera access to take a banner photo.');
+          return;
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission required', 'We need access to your photos to upload a banner.');
+          return;
+        }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [16, 9],
-        quality: 0.8,
-      });
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 0.8,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [16, 9],
+            quality: 0.8,
+          });
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
@@ -335,6 +349,14 @@ export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOp
     } finally {
       setBannerUploading(false);
     }
+  };
+
+  const handleUploadBanner = () => {
+    Alert.alert('Banner image', 'Choose source', [
+      { text: 'Take photo', onPress: () => uploadBannerFromSource(true) },
+      { text: 'Choose from gallery', onPress: () => uploadBannerFromSource(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   // Share shop
@@ -392,24 +414,38 @@ export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOp
     }
   };
 
-  const handleUploadShopImage = async () => {
+  const uploadShopImageFromSource = async (useCamera: boolean) => {
     try {
       if (!shopId) {
         Alert.alert('Error', 'Shop not found. Please try again.');
         return;
       }
 
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission required', 'We need access to your photos to upload shop images.');
-        return;
+      if (useCamera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+          Alert.alert('Permission required', 'We need camera access to take a shop photo.');
+          return;
+        }
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permission.granted) {
+          Alert.alert('Permission required', 'We need access to your photos to upload shop images.');
+          return;
+        }
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-      });
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.7,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.7,
+          });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
@@ -437,6 +473,14 @@ export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOp
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleUploadShopImage = () => {
+    Alert.alert('Shop image', 'Choose source', [
+      { text: 'Take photo', onPress: () => uploadShopImageFromSource(true) },
+      { text: 'Choose from gallery', onPress: () => uploadShopImageFromSource(false) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleDeleteShopImage = async (url: string) => {

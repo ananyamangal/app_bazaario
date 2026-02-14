@@ -109,7 +109,8 @@ export default function NotificationBell({ dropdownTop = 100, onNotificationPres
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : notifications.length > 0 ? (
-              notifications.slice(0, 20).map((n) => (
+              // Show only unread notifications so items disappear once read.
+              notifications.filter((n) => !n.isRead).slice(0, 20).map((n) => (
                 <Pressable
                   key={n._id}
                   onPress={() => handleNotificationPress(n)}

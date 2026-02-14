@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -18,9 +18,21 @@ import { radius } from '../theme/spacing';
 
 const SHADOW = { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2 };
 const PAD = 16;
+const INVOICE_EXPIRY_MINUTES = 15;
 
 function fmt(n: number) {
   return `₹${n.toLocaleString('en-IN')}`;
+}
+
+function getInvoiceTimeLeft(expiresAtIso: string): { expired: boolean; minutes: number; seconds: number } {
+  const now = Date.now();
+  const end = new Date(expiresAtIso).getTime();
+  const left = Math.max(0, Math.floor((end - now) / 1000));
+  return {
+    expired: left <= 0,
+    minutes: Math.floor(left / 60),
+    seconds: left % 60,
+  };
 }
 
 export default function CartScreen() {
@@ -28,6 +40,24 @@ export default function CartScreen() {
   const navigation = useNavigation();
   const { switchToTab } = useTabNavigator();
   const { items, updateQty, removeItem, subtotal, platformFee, discount, tax, total } = useCheckout();
+
+  const invoiceItem = items.find((i) => i.invoiceExpiresAt);
+  const [invoiceTimeLeft, setInvoiceTimeLeft] = useState(invoiceItem?.invoiceExpiresAt
+    ? getInvoiceTimeLeft(invoiceItem.invoiceExpiresAt)
+    : null);
+
+  useEffect(() => {
+    if (!invoiceItem?.invoiceExpiresAt) {
+      setInvoiceTimeLeft(null);
+      return;
+    }
+    const tick = () => setInvoiceTimeLeft(getInvoiceTimeLeft(invoiceItem.invoiceExpiresAt!));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [invoiceItem?.invoiceExpiresAt]);
+
+  const invoiceExpired = invoiceTimeLeft?.expired ?? false;
 
   if (items.length === 0) {
     return (
@@ -51,6 +81,17 @@ export default function CartScreen() {
       >
         <StepIndicator current={1} total={6} />
         <Text style={styles.title}>Checkout</Text>
+
+        {invoiceItem && (
+          <View style={[styles.invoiceBanner, invoiceExpired ? styles.invoiceBannerExpired : styles.invoiceBannerActive]}>
+            <Ionicons name="time-outline" size={18} color={invoiceExpired ? colors.destructive : colors.foreground} />
+            <Text style={[styles.invoiceBannerText, invoiceExpired && styles.invoiceBannerTextExpired]}>
+              {invoiceExpired
+                ? 'Invoice expired. Remove from cart and ask the seller for a new one.'
+                : `Place order within ${invoiceTimeLeft?.minutes ?? 0}:${String(invoiceTimeLeft?.seconds ?? 0).padStart(2, '0')} (15 min limit)`}
+            </Text>
+          </View>
+        )}
 
         {items.map((i) => (
           <View key={i.id} style={[styles.itemCard, SHADOW]}>
@@ -95,10 +136,17 @@ export default function CartScreen() {
 
       <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
         <Pressable
-          onPress={() => navigation.navigate('CheckoutAddress' as never)}
-          style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
+          onPress={() => !invoiceExpired && navigation.navigate('CheckoutAddress' as never)}
+          disabled={invoiceExpired}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed && styles.ctaPressed,
+            invoiceExpired && styles.ctaDisabled,
+          ]}
         >
-          <Text style={styles.ctaLabel}>Proceed to Checkout</Text>
+          <Text style={[styles.ctaLabel, invoiceExpired && styles.ctaLabelDisabled]}>
+            {invoiceExpired ? 'Invoice expired – remove item to continue' : 'Proceed to Checkout'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -118,6 +166,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: PAD },
+  invoiceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: radius.lg,
+    marginBottom: 12,
+  },
+  invoiceBannerActive: { backgroundColor: colors.secondary, borderWidth: 1, borderColor: colors.primary },
+  invoiceBannerExpired: { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: colors.destructive },
+  invoiceBannerText: { flex: 1, fontSize: 13, color: colors.foreground },
+  invoiceBannerTextExpired: { color: colors.destructive, fontWeight: '600' },
+  ctaDisabled: { opacity: 0.6 },
+  ctaLabelDisabled: { color: colors.mutedForeground },
   title: { fontSize: 22, fontWeight: '700', color: colors.foreground, marginTop: 12, marginBottom: 16 },
   itemCard: { backgroundColor: colors.card, borderRadius: radius.lg, padding: PAD, marginBottom: 12 },
   itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },

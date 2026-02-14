@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { AppState, AppStateStatus } from 'react-native';
 import { apiGetAuth, apiPatchAuth } from '../api/client';
 import { useAuth } from './AuthContext';
+import { useChat } from './ChatContext';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -53,6 +54,7 @@ export function useNotificationContext() {
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { socket } = useChat();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -84,7 +86,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await apiPatchAuth(`/notifications/${notificationId}/read`);
       setNotifications((prev) =>
-        prev.map((n) => (n._id === notificationId ? { ...n, isRead: true } : n))
+        // Remove the notification from the in-memory list so it disappears
+        // immediately after being marked as read.
+        prev.filter((n) => n._id !== notificationId)
       );
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (e) {
@@ -121,6 +125,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
     return () => sub.remove();
   }, [user, refreshUnreadCount]);
+
+  // Real-time: when server emits new_notification, add to list and bump unread count
+  useEffect(() => {
+    if (!socket || !user) return;
+    const onNewNotification = (payload: { notification: AppNotification }) => {
+      const n = payload.notification;
+      if (!n || !n._id) return;
+      setNotifications((prev) => {
+        if (prev.some((x) => x._id === n._id)) return prev;
+        return [n, ...prev];
+      });
+      setUnreadCount((c) => c + 1);
+    };
+    socket.on('new_notification', onNewNotification);
+    return () => {
+      socket.off('new_notification', onNewNotification);
+    };
+  }, [socket, user]);
 
   const value: NotificationContextValue = {
     notifications,

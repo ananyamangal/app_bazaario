@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  ActivityIndicator,
-  Alert,
   Image,
   ImageSourcePropType,
   Pressable,
@@ -12,7 +10,6 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { useAuth } from '../../context/AuthContext';
 import { colors } from '../../theme/colors';
 import { radius } from '../../theme/spacing';
 import type { RootStackParamList } from '../../navigation/types';
@@ -47,8 +44,6 @@ const splashLogo: ImageSourcePropType = require('../../../assets/splashlogo.png'
 type AuthScreenProps = NativeStackScreenProps<RootStackParamList, 'Auth'>;
 
 export default function AuthScreen({ navigation }: AuthScreenProps) {
-  const { signInWithGoogle } = useAuth();
-  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
 
   function handleLogin() {
     navigation.navigate('Login');
@@ -59,15 +54,8 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
   }
 
   async function handleGoogle() {
-    setSocialLoading('google');
-    try {
-      await signInWithGoogle('customer');
-    } catch (error: any) {
-      if (error?.message?.toLowerCase().includes('cancel')) return;
-      Alert.alert('Error', error?.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setSocialLoading(null);
-    }
+    // Navigate to role selection first, then user can choose customer or seller
+    navigation.navigate('RoleSelect');
   }
 
   return (
@@ -106,13 +94,8 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
         <Pressable
           onPress={handleGoogle}
           style={({ pressed }) => [styles.btnSocial, pressed && styles.btnSocialPressed]}
-          disabled={socialLoading !== null}
         >
-          {socialLoading === 'google' ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Text style={styles.btnSocialLabel}>Continue with Google</Text>
-          )}
+          <Text style={styles.btnSocialLabel}>Continue with Google</Text>
         </Pressable>
       </View>
     </ScrollView>

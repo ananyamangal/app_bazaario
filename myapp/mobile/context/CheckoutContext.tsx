@@ -14,6 +14,8 @@ export type CartItem = {
   price: number;
   qty: number;
   image?: string;
+  /** Call-invoice expiry (ISO string). Must place order within 15 min. */
+  invoiceExpiresAt?: string;
 };
 
 export type SavedAddress = {
@@ -105,6 +107,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       price: item.price,
       qty: item.quantity,
       image: item.image,
+      invoiceExpiresAt: item.invoiceExpiresAt,
     })),
     [cart.items]
   );

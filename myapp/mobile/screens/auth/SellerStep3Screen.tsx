@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import BackButton from '../../components/BackButton';
 import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
 import type { RootStackParamList } from '../../navigation/types';

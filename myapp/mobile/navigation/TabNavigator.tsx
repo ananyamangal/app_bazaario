@@ -73,6 +73,7 @@ function InvoiceReadyListener({ switchToTab }: { switchToTab: (tab: TabId) => vo
       price: number;
       imageUrl: string;
       quantity: number;
+      expiresAt?: string;
     }) => {
       addItem(
         {
@@ -82,6 +83,7 @@ function InvoiceReadyListener({ switchToTab }: { switchToTab: (tab: TabId) => vo
           name: data.itemName,
           price: data.price,
           image: data.imageUrl || undefined,
+          invoiceExpiresAt: data.expiresAt,
         },
         data.quantity
       );
