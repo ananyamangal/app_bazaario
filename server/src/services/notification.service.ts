@@ -2,6 +2,12 @@ import admin from "../config/firebase";
 import User from "../models/user.model";
 import { Notification, NotificationType } from "../models/notification.model";
 
+const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+
+function isExpoPushToken(token: string): boolean {
+  return typeof token === "string" && token.startsWith("ExponentPushToken[");
+}
+
 interface NotificationPayload {
   title: string;
   body: string;
@@ -9,7 +15,49 @@ interface NotificationPayload {
 }
 
 /**
- * Send push notification to a specific user
+ * Send push via Expo Push API (for ExponentPushToken[...] from Expo apps)
+ */
+async function sendExpoPush(
+  tokens: string[],
+  payload: NotificationPayload
+): Promise<{ success: number; failed: number; invalidTokens: string[] }> {
+  if (tokens.length === 0) return { success: 0, failed: 0, invalidTokens: [] };
+  const invalidTokens: string[] = [];
+  try {
+    const messages = tokens.map((to) => ({
+      to,
+      title: payload.title,
+      body: payload.body,
+      data: payload.data || {},
+      sound: "default",
+      priority: "high" as const,
+      channelId: "bazaario_default",
+    }));
+    const res = await fetch(EXPO_PUSH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(messages),
+    });
+    const data = await res.json();
+    if (data.data) {
+      data.data.forEach((r: any, idx: number) => {
+        if (r.status === "error" && r.details?.error === "DeviceNotRegistered") {
+          invalidTokens.push(tokens[idx]);
+        }
+      });
+    }
+    const success = data.data?.filter((r: any) => r.status === "ok").length ?? 0;
+    const failed = (data.data?.length ?? 0) - success;
+    return { success, failed, invalidTokens };
+  } catch (e) {
+    console.error("[Notification] Expo push error:", e);
+    return { success: 0, failed: tokens.length, invalidTokens: [] };
+  }
+}
+
+/**
+ * Send push notification to a specific user.
+ * Uses Expo Push API for ExponentPushToken[...] (Expo app) and FCM for native FCM tokens.
  */
 export async function sendPushNotification(
   userId: string,
@@ -21,74 +69,99 @@ export async function sendPushNotification(
       return { success: false, sent: 0, failed: 0 };
     }
 
-    const tokens = (user as any).fcmTokens || [];
+    const tokens: string[] = (user as any).fcmTokens || [];
     if (tokens.length === 0) {
-      console.log(`[Notification] No FCM tokens for user ${userId}`);
+      console.log(`[Notification] No push tokens for user ${userId}`);
       return { success: false, sent: 0, failed: 0 };
     }
 
-    const message: admin.messaging.MulticastMessage = {
-      tokens,
-      notification: {
-        title: payload.title,
-        body: payload.body,
-      },
-      data: payload.data || {},
-      android: {
-        notification: {
-          channelId: "bazaario_default",
-          priority: "high",
-          sound: "default",
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
+    const expoTokens = tokens.filter(isExpoPushToken);
+    const fcmTokens = tokens.filter((t) => !isExpoPushToken(t));
+
+    let totalSent = 0;
+    let totalFailed = 0;
+    const allInvalid: string[] = [];
+
+    if (expoTokens.length > 0) {
+      const expoResult = await sendExpoPush(expoTokens, payload);
+      totalSent += expoResult.success;
+      totalFailed += expoResult.failed;
+      allInvalid.push(...expoResult.invalidTokens);
+      console.log(`[Notification] Expo push to ${userId}: ${expoResult.success} ok, ${expoResult.failed} failed`);
+    }
+
+    if (fcmTokens.length > 0) {
+      const message: admin.messaging.MulticastMessage = {
+        tokens: fcmTokens,
+        notification: { title: payload.title, body: payload.body },
+        data: payload.data || {},
+        android: {
+          notification: {
+            channelId: "bazaario_default",
+            priority: "high",
             sound: "default",
-            badge: 1,
           },
         },
-      },
-    };
-
-    const response = await admin.messaging().sendEachForMulticast(message);
-    
-    console.log(
-      `[Notification] Sent to user ${userId}: ${response.successCount} success, ${response.failureCount} failed`
-    );
-
-    // Remove invalid tokens
-    if (response.failureCount > 0) {
-      const invalidTokens: string[] = [];
-      response.responses.forEach((resp: any, idx: number) => {
-        if (!resp.success) {
-          const errorCode = resp.error?.code;
-          if (
-            errorCode === "messaging/invalid-registration-token" ||
-            errorCode === "messaging/registration-token-not-registered"
-          ) {
-            invalidTokens.push(tokens[idx]);
+        apns: {
+          payload: { aps: { sound: "default", badge: 1 } },
+        },
+      };
+      const response = await admin.messaging().sendEachForMulticast(message);
+      totalSent += response.successCount;
+      totalFailed += response.failureCount;
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp: any, idx: number) => {
+          if (!resp.success) {
+            const code = resp.error?.code;
+            if (
+              code === "messaging/invalid-registration-token" ||
+              code === "messaging/registration-token-not-registered"
+            ) {
+              allInvalid.push(fcmTokens[idx]);
+            }
           }
-        }
-      });
-
-      if (invalidTokens.length > 0) {
-        await User.findByIdAndUpdate(userId, {
-          $pull: { fcmTokens: { $in: invalidTokens } },
         });
-        console.log(`[Notification] Removed ${invalidTokens.length} invalid tokens`);
       }
     }
 
-    return {
-      success: response.successCount > 0,
-      sent: response.successCount,
-      failed: response.failureCount,
-    };
+    if (allInvalid.length > 0) {
+      await User.findByIdAndUpdate(userId, { $pull: { fcmTokens: { $in: allInvalid } } });
+      console.log(`[Notification] Removed ${allInvalid.length} invalid tokens for user ${userId}`);
+    }
+
+    return { success: totalSent > 0, sent: totalSent, failed: totalFailed };
   } catch (error) {
     console.error("[Notification] Error sending push:", error);
     return { success: false, sent: 0, failed: 0 };
   }
+}
+
+/**
+ * Send high-priority push for incoming call (so seller sees it when app is closed)
+ */
+export async function sendIncomingCallPush(
+  sellerId: string,
+  customerName: string,
+  callId: string,
+  shopId: string,
+  shopName: string,
+  callType: string,
+  channelName: string
+): Promise<void> {
+  const payload: NotificationPayload = {
+    title: "Incoming call",
+    body: `${customerName || "A customer"} is calling you (${shopName})`,
+    data: {
+      type: "incoming_call",
+      callId,
+      customerName: customerName || "Customer",
+      shopId,
+      shopName,
+      callType: callType || "video",
+      channelName: channelName || "",
+    },
+  };
+  await sendPushNotification(sellerId, payload);
 }
 
 /** Set by socket.service so we can emit new_notification in real time without circular dependency */

@@ -7,9 +7,28 @@ import React, {
   useRef,
 } from 'react';
 import { Alert, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthContext';
 import { useChat } from './ChatContext';
 import { apiGet, apiGetAuth, apiPostAuth } from '../api/client';
+
+function setIncomingCallFromPushData(
+  data: Record<string, string>,
+  setCurrentCall: (c: CallInfo | null) => void,
+  setCallState: (s: CallState) => void
+) {
+  if (data?.type !== 'incoming_call' || !data?.callId) return;
+  setCurrentCall({
+    callId: data.callId,
+    channelName: data.channelName || '',
+    isIncoming: true,
+    callType: (data.callType === 'voice' ? 'voice' : 'video') as CallType,
+    shopId: data.shopId,
+    shopName: data.shopName,
+    customerName: data.customerName || 'Customer',
+  });
+  setCallState('ringing');
+}
 
 // -----------------------------------------------------------------------------
 // Types
@@ -206,6 +225,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off('call_ended', handleCallEnded);
     };
   }, [socket, user, currentCall]);
+
+  // Handle incoming call when app was opened from push (cold start or background tap)
+  useEffect(() => {
+    if (user?.role !== 'seller') return;
+
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      const data = response?.notification?.request?.content?.data as Record<string, string> | undefined;
+      if (data) setIncomingCallFromPushData(data, setCurrentCall, setCallState);
+    });
+
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, string>;
+      setIncomingCallFromPushData(data, setCurrentCall, setCallState);
+    });
+    return () => sub.remove();
+  }, [user?.role]);
 
   // Fallback: customer polls for Agora token if socket didn't deliver call_accepted
   useEffect(() => {

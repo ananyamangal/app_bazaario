@@ -28,6 +28,7 @@ import {
   notifyCustomerAvailabilityResponse,
   registerFcmToken,
   unregisterFcmToken,
+  sendIncomingCallPush,
 } from "./services/notification.service";
 import {
   generateAgoraToken,
@@ -3821,7 +3822,7 @@ router.post("/calls/request", authenticate, async (req: Request, res: Response) 
     });
     await call.save();
 
-    // Notify seller via socket
+    // Notify seller via socket (when app is open)
     emitToUser(shop.sellerId.toString(), "call_incoming", {
       callId: call._id,
       customerId: user._id,
@@ -3831,6 +3832,17 @@ router.post("/calls/request", authenticate, async (req: Request, res: Response) 
       callType,
       channelName,
     });
+
+    // Also send push so seller sees incoming call when app is closed
+    await sendIncomingCallPush(
+      shop.sellerId.toString(),
+      user.name || "Customer",
+      call._id.toString(),
+      shop._id.toString(),
+      shop.name,
+      callType,
+      channelName
+    );
 
     return res.status(201).json({
       message: "Call requested",
