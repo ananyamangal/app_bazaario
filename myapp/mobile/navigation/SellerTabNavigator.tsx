@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View, BackHandler, Platform, ToastAndroid } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -55,6 +55,8 @@ const TABS: {
   { id: 'Profile', label: 'Profile', icon: 'person-outline' },
 ];
 
+const BACK_EXIT_DELAY_MS = 2000;
+
 // -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
@@ -63,7 +65,28 @@ export default function SellerTabNavigator() {
   const [active, setActive] = useState<SellerTabId>('Dashboard');
   const [overlay, setOverlay] = useState<OverlayScreen>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
+  const lastBackPress = useRef(0);
   const insets = useSafeAreaInsets();
+
+  // Android back: close overlay or double-tap to exit
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (overlay !== null) {
+        setOverlay(null);
+        return true;
+      }
+      const now = Date.now();
+      if (now - lastBackPress.current < BACK_EXIT_DELAY_MS) {
+        BackHandler.exitApp();
+        return true;
+      }
+      lastBackPress.current = now;
+      ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+      return true;
+    });
+    return () => sub.remove();
+  }, [overlay]);
 
   const { shop } = useAuth();
 

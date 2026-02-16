@@ -43,7 +43,7 @@ export type RootStackParamList = {
     city: string;
     shopAddress: string;
     categories: string[];
-    phone: string;
+    phone?: string;
   };
   SellerTabs: undefined;
 };

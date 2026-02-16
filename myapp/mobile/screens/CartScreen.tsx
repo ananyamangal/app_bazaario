@@ -206,8 +206,8 @@ const styles = StyleSheet.create({
   ctaPressed: { opacity: 0.9 },
   ctaLabel: { color: colors.card, fontSize: 17, fontWeight: '600' },
   empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.foreground, marginTop: 16 },
-  emptySub: { fontSize: 15, color: colors.mutedForeground, marginTop: 8 },
+  emptyTitle: { fontSize: 24, fontWeight: '700', color: colors.foreground, marginTop: 16 },
+  emptySub: { fontSize: 17, color: colors.mutedForeground, marginTop: 8, textAlign: 'center' },
   emptyBtn: { marginTop: 24, backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 28, borderRadius: radius.xl },
   emptyBtnLabel: { color: colors.card, fontSize: 16, fontWeight: '600' },
 });

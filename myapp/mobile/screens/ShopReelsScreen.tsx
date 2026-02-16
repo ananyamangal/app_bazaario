@@ -23,7 +23,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors } from '../theme/colors';
 import { radius } from '../theme/spacing';
-import { useChat } from '../context/ChatContext';
+import { useChat, type Conversation } from '../context/ChatContext';
 import { apiGet, apiPost, apiPostAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
@@ -186,16 +186,18 @@ function VideoItem({
 
   useEffect(() => {
     if (isActive && !isPaused) {
-      videoRef.current?.playAsync();
+      // Small delay so the active item is mounted before we play (avoids static first frame)
+      const t = setTimeout(() => {
+        videoRef.current?.playAsync().catch(() => {});
+      }, 100);
       // Track view once when video becomes active
       if (item.reelId && !hasTrackedView.current) {
         hasTrackedView.current = true;
-        apiPost(`/reels/${item.reelId}/view`, {}).catch(() => {
-          // Ignore view tracking errors
-        });
+        apiPost(`/reels/${item.reelId}/view`, {}).catch(() => {});
       }
+      return () => clearTimeout(t);
     } else {
-      videoRef.current?.pauseAsync();
+      videoRef.current?.pauseAsync().catch(() => {});
     }
   }, [isActive, isPaused, item.reelId]);
 
@@ -226,6 +228,7 @@ function VideoItem({
   return (
     <Pressable onPress={handleTap} style={styles.videoContainer}>
       <Video
+        key={item.id}
         ref={videoRef}
         source={{ uri: item.videoUrl }}
         style={styles.video}
@@ -336,9 +339,10 @@ function VideoItem({
 
 type Props = {
   onShopPress?: (shopId: string) => void;
+  onOpenChat?: (conversation: Conversation) => void;
 };
 
-export default function ShopReelsScreen({ onShopPress }: Props) {
+export default function ShopReelsScreen({ onShopPress, onOpenChat }: Props) {
   const [reels, setReels] = useState<ShopReel[]>([]);
   const [markets, setMarkets] = useState<MarketOption[]>([]);
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
@@ -440,12 +444,14 @@ export default function ShopReelsScreen({ onShopPress }: Props) {
 
   const handleChat = useCallback(async (shopId: string) => {
     try {
-      await startConversation(shopId);
-      console.log('Chat started with shop:', shopId);
+      const conversation = await startConversation(shopId);
+      if (conversation && onOpenChat) {
+        onOpenChat(conversation);
+      }
     } catch (error) {
       console.error('Failed to start chat:', error);
     }
-  }, [startConversation]);
+  }, [startConversation, onOpenChat]);
 
   const handleComment = useCallback(async (id: string) => {
     setSelectedReelId(id);

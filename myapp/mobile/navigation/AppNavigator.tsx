@@ -51,6 +51,18 @@ function AuthStack() {
   );
 }
 
+// Seller onboarding - shown when seller is authenticated but has no shop (e.g. just signed up with Google)
+function SellerOnboardingStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="SellerStep1">
+      <Stack.Screen name="SellerStep1" component={SellerStep1Screen} />
+      <Stack.Screen name="SellerStep2" component={SellerStep2Screen} />
+      <Stack.Screen name="SellerStep3" component={SellerStep3Screen} />
+      <Stack.Screen name="SellerPhoneOtp" component={SellerPhoneOtpScreen} />
+    </Stack.Navigator>
+  );
+}
+
 // Customer stack - shown when customer is authenticated
 function CustomerStack() {
   return (
@@ -85,7 +97,7 @@ function LoadingScreen() {
 }
 
 export default function AppNavigator() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, user, shop } = useAuth();
   const [showSplash, setShowSplash] = useState(true);
 
   // Show splash screen for 2 seconds on app start
@@ -106,14 +118,20 @@ export default function AppNavigator() {
     return <LoadingScreen />;
   }
 
+  // Seller with no shop (e.g. just signed up with Google) must complete 3-step onboarding first
+  const isSellerWithoutShop = isAuthenticated && user?.role === 'seller' && !shop;
+
   return (
     <NavigationContainer>
       <CheckoutProvider>
         {!isAuthenticated ? (
           // Not logged in - show auth screens
           <AuthStack />
+        ) : isSellerWithoutShop ? (
+          // Seller signed in but has not completed shop setup - show onboarding (Step 1 → 2 → 3 → Phone OTP)
+          <SellerOnboardingStack />
         ) : user?.role === 'seller' ? (
-          // Logged in as seller
+          // Logged in as seller with shop - show dashboard
           <SellerStack />
         ) : (
           // Logged in as customer

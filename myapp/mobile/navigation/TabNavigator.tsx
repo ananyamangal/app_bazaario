@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, View, Alert } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { Pressable, StyleSheet, Text, View, Alert, BackHandler, Platform, ToastAndroid } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -137,11 +137,34 @@ function AvailabilityResponseCartListener({ switchToTab }: { switchToTab: (tab: 
   return null;
 }
 
+const BACK_EXIT_DELAY_MS = 2000;
+
 export default function TabNavigator() {
   const [active, setActive] = useState<TabId>('Home');
   const [overlayStack, setOverlayStack] = useState<OverlayItem[]>([]);
+  const lastBackPress = useRef(0);
   const insets = useSafeAreaInsets();
   const top = overlayStack[overlayStack.length - 1];
+
+  // Android back: pop overlay or double-tap to exit
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (overlayStack.length > 0) {
+        setOverlayStack((s) => s.slice(0, -1));
+        return true;
+      }
+      const now = Date.now();
+      if (now - lastBackPress.current < BACK_EXIT_DELAY_MS) {
+        BackHandler.exitApp();
+        return true;
+      }
+      lastBackPress.current = now;
+      ToastAndroid.show('Press back again to exit', ToastAndroid.SHORT);
+      return true;
+    });
+    return () => sub.remove();
+  }, [overlayStack.length]);
 
   // Chat and Call contexts
   const { totalUnread } = useChat();
@@ -240,7 +263,7 @@ export default function TabNavigator() {
       case 'Explore':
         return <ExploreScreen />;
       case 'Shop':
-        return <ShopReelsScreen onShopPress={handleShopPressFromReels} />;
+        return <ShopReelsScreen onShopPress={handleShopPressFromReels} onOpenChat={handleOpenChat} />;
       case 'Cart':
         return <CartScreen />;
       case 'Profile':

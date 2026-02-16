@@ -190,9 +190,9 @@ const styles = StyleSheet.create({
   scrollContent: { padding: PAD },
   loadingWrap: { paddingVertical: 48, alignItems: 'center', gap: 12 },
   loadingText: { fontSize: 15, color: colors.mutedForeground },
-  emptyWrap: { paddingVertical: 48, alignItems: 'center', gap: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: colors.foreground },
-  emptyText: { fontSize: 14, color: colors.mutedForeground, textAlign: 'center', paddingHorizontal: 24 },
+  emptyWrap: { paddingVertical: 60, alignItems: 'center', gap: 16 },
+  emptyTitle: { fontSize: 22, fontWeight: '700', color: colors.foreground },
+  emptyText: { fontSize: 16, color: colors.mutedForeground, textAlign: 'center', paddingHorizontal: 28, lineHeight: 24 },
   shopCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

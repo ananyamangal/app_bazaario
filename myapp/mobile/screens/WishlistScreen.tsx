@@ -71,7 +71,7 @@ export default function WishlistScreen({ onBack, onViewShop }: Props) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
+          <Ionicons name="arrow-back" size={26} color={colors.foreground} />
         </Pressable>
         <Text style={styles.title}>Wishlist</Text>
         {items.length > 0 ? (
@@ -90,7 +90,9 @@ export default function WishlistScreen({ onBack, onViewShop }: Props) {
       >
         {items.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Ionicons name="heart-outline" size={64} color={colors.mutedForeground} />
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="heart-outline" size={72} color={colors.primary} />
+            </View>
             <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
             <Text style={styles.emptyText}>Save items you like to find them easily later</Text>
           </View>
@@ -181,13 +183,24 @@ export default function WishlistScreen({ onBack, onViewShop }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  clearText: { fontSize: 14, fontWeight: '600', color: colors.destructive },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: PAD, paddingBottom: 12 },
+  backBtn: { padding: 4 },
+  title: { fontSize: 26, fontWeight: '700', color: colors.foreground },
+  clearText: { fontSize: 15, fontWeight: '600', color: colors.destructive },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: PAD, paddingTop: 16 },
-  emptyWrap: { paddingVertical: 80, alignItems: 'center', gap: 12 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.foreground },
-  emptyText: { fontSize: 15, color: colors.mutedForeground, textAlign: 'center' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.foreground, marginBottom: 12, marginTop: 8 },
+  emptyWrap: { paddingVertical: 80, alignItems: 'center', gap: 20 },
+  emptyIconWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 24, fontWeight: '700', color: colors.foreground },
+  emptyText: { fontSize: 17, color: colors.mutedForeground, textAlign: 'center', paddingHorizontal: 32, lineHeight: 24 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 12, marginTop: 8 },
   itemCard: { backgroundColor: colors.card, borderRadius: radius.lg, padding: PAD, marginBottom: 12 },
   itemRow: { flexDirection: 'row', alignItems: 'center' },
   itemImage: { width: 80, height: 80, borderRadius: radius.md, marginRight: 12 },
