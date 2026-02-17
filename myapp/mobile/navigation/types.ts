@@ -24,6 +24,9 @@ export type RootStackParamList = {
     name?: string;
     email?: string;
   };
+  GoogleRoleSelect: {
+    from?: 'auth' | 'login';
+  };
   // Seller onboarding (Join as seller)
   SellerStep1: undefined;
   SellerStep2: { shopName: string; ownerName: string; shopDescription: string };

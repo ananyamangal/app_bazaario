@@ -346,6 +346,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Don't block app forever if backend is slow (e.g. Render cold start)
+  const AUTH_ME_TIMEOUT_MS = 12_000;
+
   // Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
@@ -355,16 +358,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (fbUser) {
         setSessionToken(null);
         await AsyncStorage.removeItem(STORAGE_KEYS.SESSION_TOKEN);
-        // Try to load cached data first
+        // Try to load cached data first so UI can show quickly
         await loadCachedData();
 
-        // Then fetch fresh data from backend
-        const data = await fetchUserData(fbUser);
-        if (data.user) {
-          setUser(data.user);
-          setProfile(data.profile);
-          setShop(data.shop);
-          await saveToStorage(data.user, data.profile, data.shop);
+        // Fetch fresh data from backend with timeout so we don't hang on slow/cold server
+        try {
+          const data = await Promise.race([
+            fetchUserData(fbUser),
+            new Promise<{ user: null; profile: null; shop: null }>((_, reject) =>
+              setTimeout(() => reject(new Error("timeout")), AUTH_ME_TIMEOUT_MS)
+            ),
+          ]);
+          if (data.user) {
+            setUser(data.user);
+            setProfile(data.profile);
+            setShop(data.shop);
+            await saveToStorage(data.user, data.profile, data.shop);
+          }
+        } catch (e) {
+          if ((e as Error)?.message === "timeout") {
+            console.warn("[Auth] /auth/me timed out; using cached data if any");
+          }
+          // Keep state from loadCachedData so app is still usable
         }
       } else {
         // No Firebase user: restore backend session if we have a stored sessionToken

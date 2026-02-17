@@ -31,6 +31,7 @@ const HERO_HEIGHT = 200;
 const MARKET_CARD_WIDTH = 160;
 const MARKET_CARD_HEIGHT = 120;
 const CATEGORY_SIZE = 72;
+const CATEGORY_ITEM_WIDTH = 84; // uniform width so all blocks are same size; label wraps inside
 const STORE_IMAGE_SIZE = 64;
 
 const HORIZONTAL_PADDING = 16;
@@ -85,16 +86,20 @@ type Shop = {
   images?: string[];
 };
 
-// Icon mapping for categories
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  'Apparel': 'shirt-outline',
-  'Jewelry': 'diamond-outline',
-  'Footwear': 'walk-outline',
-  'Suits': 'business-outline',
-  'Home Decor': 'home-outline',
-  'Casual Wear': 'body-outline',
-  'Lehenga': 'flower-outline',
-};
+// Display order and icons for Shop by Category (merged with API categories by name)
+const CATEGORY_DISPLAY: { name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { name: 'Jewellery and accessories', icon: 'diamond-outline' },
+  { name: 'Home decor', icon: 'home-outline' },
+  { name: 'Home appliances', icon: 'desktop-outline' },
+  { name: 'Electronics', icon: 'phone-portrait-outline' },
+  { name: 'Kids and toys', icon: 'happy-outline' },
+  { name: 'Bags', icon: 'bag-outline' },
+  { name: 'Footwear', icon: 'walk-outline' },
+  { name: 'Beauty and health', icon: 'sparkles-outline' },
+  { name: 'Menswear', icon: 'shirt-outline' },
+  { name: 'Traditional wear', icon: 'flower-outline' },
+  { name: "Women's Western", icon: 'woman-outline' },
+];
 
 // -----------------------------------------------------------------------------
 // Component
@@ -103,12 +108,16 @@ const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 export default function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { switchToTab, openMarketDetail, openCategoryShops, openShopDetail, openConversations, openSearchResults } = useTabNavigator();
+  const { switchToTab, openMarketDetail, openCategoryShops, openCategoryList, openShopDetail, openConversations, openSearchResults } = useTabNavigator();
   const { totalUnread } = useChat();
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
+  // All 11 categories from our list; _id from API when name matches (for navigation)
+  const [mergedCategories, setMergedCategories] = useState<{ _id: string | null; name: string; icon: keyof typeof Ionicons.glyphMap }[]>(() =>
+    CATEGORY_DISPLAY.map((d) => ({ name: d.name, icon: d.icon, _id: null }))
+  );
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{
@@ -137,6 +146,13 @@ export default function HomeScreen() {
         setMarkets(marketsData.slice(0, 5)); // Show up to 5 markets
         setCategories(categoriesData);
         setShops(shopsData.slice(0, 5)); // Show up to 5 shops
+        const normalized = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+        // Always show all 11 categories; use API _id when name matches so tap can open category shops
+        const merged = CATEGORY_DISPLAY.map((d) => {
+          const match = categoriesData.find((c) => normalized(c.name) === normalized(d.name));
+          return { name: d.name, icon: d.icon, _id: match ? match._id : null };
+        });
+        setMergedCategories(merged);
       } catch (e) {
         console.warn('Failed to load home data', e);
       } finally {
@@ -223,17 +239,23 @@ export default function HomeScreen() {
 
   function handleMarketCard(market: Market) {
     const location = `${market.city}, ${market.state}`;
+    const coverImage = market.images?.find((img) => img.type === 'cover') ?? market.images?.[0];
     openMarketDetail({
       marketId: market._id,
       name: market.name,
       location,
       rating: market.ratingAverage ?? 4.5,
       description: market.description ?? '',
+      imageUrl: coverImage?.url,
     });
   }
 
-  function handleCategory(category: Category) {
-    openCategoryShops({ categoryId: category._id, categoryLabel: category.name });
+  function handleCategory(category: { _id: string | null; name: string }) {
+    if (category._id) {
+      openCategoryShops({ categoryId: category._id, categoryLabel: category.name });
+    } else {
+      openSearchResults(category.name);
+    }
   }
 
   function handleVisitStore(shop: Shop) {
@@ -467,8 +489,8 @@ export default function HomeScreen() {
             resizeMode="cover"
           />
           <View style={styles.heroOverlay} />
-          <Text style={styles.heroHeading}>Shop from Offline Stores</Text>
-          <Text style={styles.heroSub}>Original prices, authentic goods.</Text>
+          <Text style={styles.heroHeading}>Shop on video call</Text>
+          <Text style={styles.heroSub}>From your favourite offline stores</Text>
           <Pressable onPress={handleStartExploring} style={({ pressed: p }) => [styles.heroCta, p && styles.ctaPressed]}>
             <Text style={styles.heroCtaLabel}>Start Exploring</Text>
           </Pressable>
@@ -519,30 +541,43 @@ export default function HomeScreen() {
 
         {/* Shop by Category */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, styles.shopByCategoryTitle]}>Shop by Category</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, styles.shopByCategoryTitle]}>Shop by Category</Text>
+            <Pressable onPress={openCategoryList} hitSlop={8}>
+              <Text style={styles.viewAll}>View all →</Text>
+            </Pressable>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-            {categories.map((c) => (
-              <Pressable key={c._id} onPress={() => handleCategory(c)} style={({ pressed }) => [styles.categoryItem, pressed && styles.pressed]}>
+            {mergedCategories.map((c) => (
+              <Pressable key={c.name} onPress={() => handleCategory(c)} style={({ pressed }) => [styles.categoryItem, pressed && styles.pressed]}>
                 <View style={styles.categoryCircle}>
-                  <Ionicons name={CATEGORY_ICONS[c.name] ?? 'pricetag-outline'} size={28} color={colors.primary} />
+                  <Ionicons name={c.icon} size={28} color={colors.primary} />
                 </View>
-                <Text style={styles.categoryLabel}>{c.name}</Text>
+                <View style={styles.categoryLabelWrap}>
+                  <Text style={styles.categoryLabel} numberOfLines={2} ellipsizeMode="tail">{c.name}</Text>
+                </View>
               </Pressable>
             ))}
           </ScrollView>
         </View>
 
-        {/* Top Stores */}
+        {/* Top Stores - entire card is one tap target */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Stores</Text>
           {shops.map((s) => (
-            <View key={s._id} style={styles.storeCard}>
+            <Pressable
+              key={s._id}
+              onPress={() => handleVisitStore(s)}
+              style={({ pressed }) => [styles.storeCard, pressed && styles.cardPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${s.shopName ?? s.name ?? 'shop'}`}
+            >
               {s.images && s.images[0] ? (
                 <Image source={{ uri: s.images[0] }} style={styles.storeImage} resizeMode="cover" />
               ) : (
                 <View style={styles.storeImage} />
               )}
-              <View style={styles.storeInfo}>
+              <View style={styles.storeInfo} pointerEvents="none">
                 <Text style={styles.storeName}>{s.shopName ?? s.name ?? 'Shop'}</Text>
                 {s.promotion?.active && (
                   <View style={styles.storePromoBadge}>
@@ -556,11 +591,13 @@ export default function HomeScreen() {
                 <Text style={styles.storeDesc}>{s.description ?? ''}</Text>
                 <Text style={styles.storeRating}>⭐ Rating {(s.ratingAverage ?? 4.5).toFixed(1)}</Text>
               </View>
-              <Pressable onPress={() => handleVisitStore(s)} style={({ pressed }) => [styles.visitBtn, pressed && styles.ctaPressed]}>
-                <Ionicons name="videocam-outline" size={14} color={colors.card} />
-                <Text style={styles.visitBtnLabel}>Visit</Text>
-              </Pressable>
-            </View>
+              <View style={styles.storeActions} pointerEvents="none">
+                <View style={styles.storeVisitPill}>
+                  <Ionicons name="videocam-outline" size={14} color={colors.card} />
+                  <Text style={styles.visitBtnLabel}>Visit</Text>
+                </View>
+              </View>
+            </Pressable>
           ))}
         </View>
       </ScrollView >
@@ -833,9 +870,16 @@ const styles = StyleSheet.create({
   },
   marketCardRating: { position: 'absolute', bottom: 10, left: 12, fontSize: 12, color: colors.card },
 
-  categoryScroll: { gap: 16, paddingRight: HORIZONTAL_PADDING },
+  categoryScroll: { gap: 20, paddingRight: HORIZONTAL_PADDING },
   categoryRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
-  categoryItem: { alignItems: 'center' },
+  categoryItem: {
+    alignItems: 'center',
+    width: CATEGORY_ITEM_WIDTH,
+    minWidth: CATEGORY_ITEM_WIDTH,
+    maxWidth: CATEGORY_ITEM_WIDTH,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   categoryCircle: {
     width: CATEGORY_SIZE,
     height: CATEGORY_SIZE,
@@ -845,11 +889,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  categoryLabel: { fontSize: 13, fontWeight: '500', color: colors.foreground },
+  categoryLabelWrap: {
+    width: CATEGORY_ITEM_WIDTH,
+    minWidth: CATEGORY_ITEM_WIDTH,
+    maxWidth: CATEGORY_ITEM_WIDTH,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.foreground,
+    textAlign: 'center',
+    width: CATEGORY_ITEM_WIDTH,
+  },
 
   storeCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'stretch',
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 12,
@@ -884,7 +942,8 @@ const styles = StyleSheet.create({
   },
   storeDesc: { fontSize: 13, color: colors.mutedForeground, marginBottom: 4 },
   storeRating: { fontSize: 12, color: colors.mutedForeground },
-  visitBtn: {
+  storeActions: { marginLeft: 8 },
+  storeVisitPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

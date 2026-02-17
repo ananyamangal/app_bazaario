@@ -17,9 +17,10 @@ import { useAuth } from '../context/AuthContext';
 
 type Props = {
   onBack: () => void;
+  onOpenSupport?: () => void;
 };
 
-export default function SettingsScreen({ onBack }: Props) {
+export default function SettingsScreen({ onBack, onOpenSupport }: Props) {
   const { user } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [marketingEnabled, setMarketingEnabled] = useState(false);
@@ -103,6 +104,24 @@ export default function SettingsScreen({ onBack }: Props) {
         {/* App info */}
         <Text style={styles.sectionLabel}>More</Text>
         <View style={styles.card}>
+          {onOpenSupport ? (
+            <>
+              <Pressable
+                style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                onPress={onOpenSupport}
+              >
+                <View style={styles.rowLeft}>
+                  <Ionicons name="help-circle-outline" size={20} color={colors.foreground} />
+                  <View style={styles.rowTextWrap}>
+                    <Text style={styles.rowTitle}>Help & Support</Text>
+                    <Text style={styles.rowSub}>Contact us, FAQs</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+              </Pressable>
+              <View style={styles.divider} />
+            </>
+          ) : null}
           <Pressable
             style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             onPress={handleAbout}

@@ -17,20 +17,19 @@ import BackButton from '../../components/BackButton';
 import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
 import type { RootStackParamList } from '../../navigation/types';
-import { useAuth } from '../../context/AuthContext';
 
 // -----------------------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------------------
 
-const IMAGE_HEIGHT = 420;
+const IMAGE_HEIGHT = 240;
 const IMAGE_MAX_WIDTH = 620;
-const GAP_IMAGE_TITLE = 24;
+const GAP_IMAGE_TITLE = 18;
 const GAP_TITLE_SUBTITLE = 8;
-const GAP_SUBTITLE_BUTTONS = 28;
-const GAP_BUTTONS = 14;
-const GAP_DIVIDER = 24;
-const GAP_BUTTONS_FOOTER = 32;
+const GAP_SUBTITLE_BUTTONS = 20;
+const GAP_BUTTONS = 12;
+const GAP_DIVIDER = 18;
+const GAP_BUTTONS_FOOTER = 20;
 const HORIZONTAL_PADDING = 24;
 const BUTTON_HEIGHT = 54;
 const DIVIDER_LABEL_MARGIN = 12;
@@ -57,8 +56,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RoleSelect'>;
 
 export default function RoleSelectScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { signInWithGoogle } = useAuth();
-  const [googleLoading, setGoogleLoading] = useState<'customer' | 'seller' | null>(null);
 
   function handleJoinAsCustomer() {
     navigation.navigate('CustomerSignUp');
@@ -71,36 +68,8 @@ export default function RoleSelectScreen({ navigation }: Props) {
   function handleLogin() {
     navigation.navigate('Login');
   }
-
-  async function handleGoogleCustomer() {
-    setGoogleLoading('customer');
-    try {
-      const result = await signInWithGoogle('customer');
-      // If customer sign-in succeeds, navigation will automatically switch to CustomerStack
-      // via AppNavigator's conditional rendering
-    } catch (error: any) {
-      if (error?.message?.toLowerCase().includes('cancel')) return;
-      Alert.alert('Error', error?.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setGoogleLoading(null);
-    }
-  }
-
-  async function handleGoogleSeller() {
-    setGoogleLoading('seller');
-    try {
-      const result = await signInWithGoogle('seller');
-      // If this is a new seller (or seller without completed profile), send them into onboarding flow.
-      if (result && result.needsProfile && result.role === 'seller') {
-        navigation.navigate('SellerStep1');
-      }
-      // If existing seller with shop, navigation will automatically switch to SellerStack
-    } catch (error: any) {
-      if (error?.message?.toLowerCase().includes('cancel')) return;
-      Alert.alert('Error', error?.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setGoogleLoading(null);
-    }
+  function handleGoogle() {
+    navigation.navigate('GoogleRoleSelect', { from: 'auth' });
   }
 
   return (
@@ -143,35 +112,18 @@ export default function RoleSelectScreen({ navigation }: Props) {
         </View>
 
         <Pressable
-          onPress={handleGoogleCustomer}
-          disabled={googleLoading !== null}
+          onPress={handleGoogle}
           style={({ pressed }) => [
             styles.btnGoogle,
             pressed && styles.btnGooglePressed,
-            googleLoading === 'customer' && styles.btnGoogleLoading,
           ]}
         >
-          {googleLoading === 'customer' ? (
-            <ActivityIndicator size="small" color={colors.foreground} />
-          ) : (
-            <Text style={styles.btnGoogleLabel}>Continue with Google (Customer)</Text>
-          )}
-        </Pressable>
-
-        <Pressable
-          onPress={handleGoogleSeller}
-          disabled={googleLoading !== null}
-          style={({ pressed }) => [
-            styles.btnGoogle,
-            pressed && styles.btnGooglePressed,
-            googleLoading === 'seller' && styles.btnGoogleLoading,
-          ]}
-        >
-          {googleLoading === 'seller' ? (
-            <ActivityIndicator size="small" color={colors.foreground} />
-          ) : (
-            <Text style={styles.btnGoogleLabel}>Continue with Google (Seller)</Text>
-          )}
+          <View style={styles.btnGoogleContent}>
+            <View style={styles.btnGoogleIconWrap}>
+              <Text style={styles.btnGoogleIconG}>G</Text>
+            </View>
+            <Text style={styles.btnGoogleLabel}>Continue with Google</Text>
+          </View>
         </Pressable>
 
         <View style={styles.footer}>
@@ -197,7 +149,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: HORIZONTAL_PADDING,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   backRow: { alignSelf: 'flex-start', marginBottom: spacing.sm },
   content: {
@@ -290,13 +242,31 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: GAP_BUTTONS,
+    marginBottom: GAP_BUTTONS_FOOTER,
   },
   btnGooglePressed: {
     backgroundColor: colors.muted,
   },
-  btnGoogleLoading: {
-    opacity: 0.7,
+  btnGoogleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  btnGoogleIconWrap: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 0.5,
+    borderColor: colors.border,
+  },
+  btnGoogleIconG: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285F4',
   },
   btnGoogleLabel: {
     color: colors.foreground,

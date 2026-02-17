@@ -156,12 +156,14 @@ export default function ExploreScreen() {
     const m = markets.find((x) => x._id === marketId);
     if (m) {
       const location = `${m.city}, ${m.state}`;
+      const coverImage = m.images?.find((img) => img.type === 'cover') ?? m.images?.[0];
       openMarketDetail({
         marketId: m._id,
         name: m.name,
         location,
         rating: m.ratingAverage ?? 4.5,
         description: m.description ?? '',
+        imageUrl: coverImage?.url,
       });
     }
   }

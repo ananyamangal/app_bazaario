@@ -70,8 +70,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [userType, setUserType] = useState<UserType>('Customer');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<'google' | null>(null);
-  const { signInWithGoogle } = useAuth();
+  const { /* signInWithGoogle */ } = useAuth();
 
   async function handleSendOtp() {
     const cleanedPhone = phone.replace(/\D/g, '');
@@ -97,22 +96,9 @@ export default function LoginScreen({ navigation }: Props) {
     }
   }
 
-  async function handleGoogleSignIn() {
-    setSocialLoading('google');
-    try {
-      const role = userType.toLowerCase() as 'customer' | 'seller';
-      const result = await signInWithGoogle(role);
-
-      // If this is a new seller (or seller without completed profile), send them into onboarding flow.
-      if (result && result.needsProfile && role === 'seller') {
-        navigation.navigate('SellerStep1');
-      }
-    } catch (error: any) {
-      if (error?.message?.toLowerCase().includes('cancel')) return;
-      Alert.alert('Error', error?.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setSocialLoading(null);
-    }
+  function handleGoogleSignIn() {
+    // Single Google button → then choose customer vs seller on next screen
+    navigation.navigate('GoogleRoleSelect', { from: 'login' });
   }
 
   function handleTerms() {
@@ -227,21 +213,13 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.socialRow}>
           <Pressable
             onPress={handleGoogleSignIn}
-            disabled={!!socialLoading}
             style={({ pressed }) => [
               styles.socialBtn,
               pressed && styles.btnPrimaryPressed,
-              socialLoading && styles.btnDisabled,
             ]}
           >
-            {socialLoading === 'google' ? (
-              <ActivityIndicator size="small" color={colors.foreground} />
-            ) : (
-              <>
-                <Ionicons name="logo-google" size={22} color="#4285F4" />
-                <Text style={styles.socialBtnLabel}>Google</Text>
-              </>
-            )}
+            <Ionicons name="logo-google" size={22} color="#4285F4" />
+            <Text style={styles.socialBtnLabel}>Google</Text>
           </Pressable>
         </View>
 

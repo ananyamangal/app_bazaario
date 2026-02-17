@@ -210,11 +210,17 @@ export default function ChatScreen({ conversation, onBack }: Props) {
     [setTyping]
   );
 
+  // Guard against double-send (double-tap or duplicate events)
+  const sendingRef = useRef(false);
+
   // Send message
   const handleSend = useCallback(() => {
-    if (!inputText.trim()) return;
+    const text = inputText.trim();
+    if (!text) return;
+    if (sendingRef.current) return;
 
-    sendMessage(inputText.trim());
+    sendingRef.current = true;
+    sendMessage(text);
     setInputText('');
     setTyping(false);
 
@@ -222,6 +228,11 @@ export default function ChatScreen({ conversation, onBack }: Props) {
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
+
+    // Allow next send after a short delay to avoid duplicate socket emits
+    setTimeout(() => {
+      sendingRef.current = false;
+    }, 500);
   }, [inputText, sendMessage, setTyping]);
 
   // Load more messages

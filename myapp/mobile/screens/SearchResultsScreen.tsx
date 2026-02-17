@@ -170,6 +170,7 @@ export default function SearchResultsScreen({ onBack, initialQuery = '' }: Props
           location: `${item.city}, ${item.state}`,
           rating: item.ratingAverage || 4.5,
           description: item.description || '',
+          imageUrl: item.images?.[0]?.url,
         })
       }
       style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}

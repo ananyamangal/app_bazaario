@@ -24,7 +24,6 @@ import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
 import { apiGet, apiPost, apiGetAuth, apiPostAuth, apiPutAuth, apiDeleteAuth } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
-import { useAvailability } from '../../context/AvailabilityContext';
 import { useChat } from '../../context/ChatContext';
 import { useNotificationContext } from '../../context/NotificationContext';
 
@@ -53,16 +52,14 @@ type OrderStats = {
 };
 
 type Props = {
-  onOpenAvailabilityRequests?: () => void;
   onOpenReelInsights?: () => void;
   onOpenReviews?: () => void;
   onOpenConversations?: () => void;
 };
 
-export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOpenReelInsights, onOpenReviews, onOpenConversations }: Props = {}) {
+export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReviews, onOpenConversations }: Props = {}) {
   const insets = useSafeAreaInsets();
   const { shop, user, refreshUser } = useAuth();
-  const { pendingCount, refreshPendingCount } = useAvailability();
   const { totalUnread } = useChat();
   const { unreadCount: notificationUnreadCount, notifications, loadNotifications, refreshUnreadCount, markAsRead, markAllAsRead } = useNotificationContext();
 
@@ -642,22 +639,18 @@ export default function SellerDashboardScreen({ onOpenAvailabilityRequests, onOp
           )}
           <Pressable 
             onPress={() => {
-              if (onOpenAvailabilityRequests) {
-                onOpenAvailabilityRequests();
-              } else {
-                loadNotifications();
-                refreshUnreadCount();
-                setNotifOpen(true);
-              }
+              loadNotifications();
+              refreshUnreadCount();
+              setNotifOpen(true);
             }} 
             style={styles.bell} 
             hitSlop={8}
           >
             <Ionicons name="notifications-outline" size={24} color={colors.foreground} />
-            {(pendingCount > 0 || notificationUnreadCount > 0) && (
+            {notificationUnreadCount > 0 && (
               <View style={styles.bellBadge}>
                 <Text style={styles.bellBadgeText}>
-                  {pendingCount + notificationUnreadCount > 9 ? '9+' : pendingCount + notificationUnreadCount}
+                  {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
                 </Text>
               </View>
             )}

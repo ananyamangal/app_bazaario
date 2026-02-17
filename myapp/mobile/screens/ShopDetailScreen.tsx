@@ -23,7 +23,6 @@ import { apiGet, apiGetAuth, apiPostAuth, apiDeleteAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
-import { useAvailability, AvailabilityStatus } from '../context/AvailabilityContext';
 import { useChat, type Conversation } from '../context/ChatContext';
 import { useCall } from '../context/CallContext';
 
@@ -97,7 +96,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
   const width = Dimensions.get('window').width;
   const { addItem, isInCart, getItemQuantity, updateQuantity, totalItems, shopId: cartShopId } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
-  const { checkProductAvailability, requestAvailability, availabilityCache } = useAvailability();
   const { startConversation } = useChat();
   const { requestCall, isAgoraConfigured } = useCall();
   const { user } = useAuth();
@@ -110,7 +108,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
   const [shopReels, setShopReels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [checkingAvailability, setCheckingAvailability] = useState<{ [productId: string]: boolean }>({});
   const [reviews, setReviews] = useState<ShopReview[]>([]);
   const carouselRef = useRef<ScrollView>(null);
   const carouselIndexRef = useRef(0);
@@ -184,56 +181,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
       Alert.alert('Error', e?.message ?? 'Could not update saved shop.');
     } finally {
       setSavingShop(false);
-    }
-  }
-
-  // Check availability before adding to cart
-  async function handleCheckAvailability(product: Product) {
-    setCheckingAvailability(prev => ({ ...prev, [product._id]: true }));
-    
-    try {
-      // First check if already approved
-      const status = await checkProductAvailability(product._id);
-      
-      if (status.canAddToCart) {
-        // Already approved, can add to cart
-        handleAddToCart(product);
-      } else if (status.status === 'pending') {
-        Alert.alert(
-          'Request Pending',
-          'You already have a pending request for this product. Please wait for the seller to respond.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        // Need to request availability
-        Alert.alert(
-          'Check Availability',
-          `Would you like to ask the seller if "${product.name}" is available?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Ask Seller',
-              onPress: async () => {
-                const request = await requestAvailability(product._id, 1);
-                if (request) {
-                  Alert.alert(
-                    'Request Sent',
-                    'The seller has been notified. You\'ll receive a notification when they respond (within 15 minutes).',
-                    [{ text: 'OK' }]
-                  );
-                } else {
-                  Alert.alert('Error', 'Failed to send request. Please try again.');
-                }
-              },
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Availability check error:', error);
-      Alert.alert('Error', 'Failed to check availability. Please try again.');
-    } finally {
-      setCheckingAvailability(prev => ({ ...prev, [product._id]: false }));
     }
   }
 
@@ -599,13 +546,7 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
                 const inCart = isInCart(product._id);
                 const quantity = getItemQuantity(product._id);
                 const inWishlist = isInWishlist(product._id);
-                const isChecking = checkingAvailability[product._id];
-                const availStatus = availabilityCache[product._id];
-                const canAddToCart = availStatus?.canAddToCart;
-                const isPending = availStatus?.status === 'pending';
-                const isDeclined = availStatus?.status === 'declined';
                 
-                // Render the appropriate button based on availability status
                 const renderActionButton = () => {
                   if (!product.isAvailable) {
                     return (
@@ -614,8 +555,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
                       </View>
                     );
                   }
-                  
-                  // If already in cart, show quantity controls
                   if (inCart) {
                     return (
                       <View style={styles.quantityControl}>
@@ -635,59 +574,13 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
                       </View>
                     );
                   }
-                  
-                  // If approved, show Add to Cart
-                  if (canAddToCart) {
-                    return (
-                      <Pressable 
-                        onPress={() => handleAddToCart(product)} 
-                        style={({ pressed }) => [styles.addBtn, pressed && styles.btnPressed]}
-                      >
-                        <Ionicons name="add" size={16} color={colors.card} />
-                        <Text style={styles.addBtnText}>Add to Cart</Text>
-                      </Pressable>
-                    );
-                  }
-                  
-                  // If pending, show waiting state
-                  if (isPending) {
-                    return (
-                      <View style={styles.pendingBtn}>
-                        <Ionicons name="time-outline" size={16} color={colors.primary} />
-                        <Text style={styles.pendingBtnText}>Waiting...</Text>
-                      </View>
-                    );
-                  }
-                  
-                  // If declined, show declined state with retry option
-                  if (isDeclined) {
-                    return (
-                      <Pressable 
-                        onPress={() => handleCheckAvailability(product)} 
-                        style={({ pressed }) => [styles.declinedBtn, pressed && styles.btnPressed]}
-                        disabled={isChecking}
-                      >
-                        <Ionicons name="close-circle-outline" size={16} color={colors.destructive} />
-                        <Text style={styles.declinedBtnText}>Not Available</Text>
-                      </Pressable>
-                    );
-                  }
-                  
-                  // Default: Show Check Availability button
                   return (
                     <Pressable 
-                      onPress={() => handleCheckAvailability(product)} 
-                      style={({ pressed }) => [styles.checkAvailBtn, pressed && styles.btnPressed]}
-                      disabled={isChecking}
+                      onPress={() => handleAddToCart(product)} 
+                      style={({ pressed }) => [styles.addBtn, pressed && styles.btnPressed]}
                     >
-                      {isChecking ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <>
-                          <Ionicons name="help-circle-outline" size={16} color={colors.primary} />
-                          <Text style={styles.checkAvailBtnText}>Check Availability</Text>
-                        </>
-                      )}
+                      <Ionicons name="add" size={16} color={colors.card} />
+                      <Text style={styles.addBtnText}>Add to Cart</Text>
                     </Pressable>
                   );
                 };
@@ -709,16 +602,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
                       {!product.isAvailable && (
                         <View style={styles.outOfStock}>
                           <Text style={styles.outOfStockText}>Out of Stock</Text>
-                        </View>
-                      )}
-                      {isPending && (
-                        <View style={styles.pendingBadge}>
-                          <Ionicons name="time" size={12} color={colors.card} />
-                        </View>
-                      )}
-                      {canAddToCart && !inCart && (
-                        <View style={styles.approvedBadge}>
-                          <Ionicons name="checkmark-circle" size={12} color={colors.card} />
                         </View>
                       )}
                       <Pressable 

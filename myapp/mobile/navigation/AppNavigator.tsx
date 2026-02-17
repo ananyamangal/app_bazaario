@@ -16,6 +16,7 @@ import SellerPhoneOtpScreen from '../screens/auth/SellerPhoneOtpScreen';
 import SellerStep1Screen from '../screens/auth/SellerStep1Screen';
 import SellerStep2Screen from '../screens/auth/SellerStep2Screen';
 import SellerStep3Screen from '../screens/auth/SellerStep3Screen';
+import GoogleRoleSelectScreen from '../screens/auth/GoogleRoleSelectScreen';
 import CheckoutAddressScreen from '../screens/checkout/CheckoutAddressScreen';
 import CheckoutInvoiceScreen from '../screens/checkout/CheckoutInvoiceScreen';
 import CheckoutPaymentScreen from '../screens/checkout/CheckoutPaymentScreen';
@@ -38,6 +39,7 @@ function AuthStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Auth" component={AuthScreen} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
+      <Stack.Screen name="GoogleRoleSelect" component={GoogleRoleSelectScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
       <Stack.Screen name="PhoneVerified" component={PhoneVerifiedScreen} />

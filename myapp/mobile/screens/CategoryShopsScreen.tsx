@@ -178,7 +178,16 @@ export default function CategoryShopsScreen({
             onPress={() => handleVisitShop(shop._id)}
             style={({ pressed }) => [styles.shopCard, pressed && styles.cardPressed]}
           >
-            <View style={styles.shopImage} />
+            {((shop as any).banner || (shop as any).images?.[0]) ? (
+              <Image
+                source={{ uri: (shop as any).banner || (shop as any).images[0] }}
+                style={styles.shopImage}
+              />
+            ) : (
+              <View style={[styles.shopImage, styles.shopImagePlaceholder]}>
+                <Ionicons name="storefront-outline" size={28} color={colors.mutedForeground} />
+              </View>
+            )}
             <View style={styles.availablePill}>
               <Text style={styles.availableText}>{shop.isOpen !== false ? 'Available' : 'Closed'}</Text>
             </View>
@@ -324,9 +333,13 @@ const styles = StyleSheet.create({
   shopImage: {
     width: SHOP_IMAGE_SIZE,
     height: SHOP_IMAGE_SIZE,
-    backgroundColor: colors.muted,
     borderRadius: radius.md,
     margin: 12,
+  },
+  shopImagePlaceholder: {
+    backgroundColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   availablePill: {
     position: 'absolute',

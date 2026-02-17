@@ -12,6 +12,7 @@ export type MarketDetailParams = {
   location: string;
   rating: number;
   description: string;
+  imageUrl?: string;
 };
 
 export type ShopDetailParams = { shopId: string };
@@ -23,6 +24,7 @@ export type TabContextValue = {
   openMarketDetail: (p: MarketDetailParams) => void;
   openShopDetail: (p: ShopDetailParams) => void;
   openCategoryShops: (p: CategoryShopsParams) => void;
+  openCategoryList: () => void;
   openConversations: () => void;
   openSearchResults: (query?: string) => void;
   goBack: () => void;
@@ -42,6 +44,7 @@ export function useTabNavigator(): TabContextValue {
       openMarketDetail: () => {},
       openShopDetail: () => {},
       openCategoryShops: () => {},
+      openCategoryList: () => {},
       openConversations: () => {},
       openSearchResults: () => {},
       goBack: () => {},

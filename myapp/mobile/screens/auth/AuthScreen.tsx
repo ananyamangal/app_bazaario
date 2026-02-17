@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { colors } from '../../theme/colors';
@@ -53,9 +54,9 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
     navigation.navigate('RoleSelect');
   }
 
-  async function handleGoogle() {
-    // Navigate to role selection first, then user can choose customer or seller
-    navigation.navigate('RoleSelect');
+  function handleGoogle() {
+    // Single Google button → then choose whether to be customer or seller
+    navigation.navigate('GoogleRoleSelect', { from: 'auth' });
   }
 
   return (
@@ -95,8 +96,18 @@ export default function AuthScreen({ navigation }: AuthScreenProps) {
           onPress={handleGoogle}
           style={({ pressed }) => [styles.btnSocial, pressed && styles.btnSocialPressed]}
         >
-          <Text style={styles.btnSocialLabel}>Continue with Google</Text>
+          <View style={styles.btnSocialContent}>
+            <Ionicons name="logo-google" size={22} color="#4285F4" />
+            <Text style={styles.btnSocialLabel}>Sign up with Google</Text>
+          </View>
         </Pressable>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Already joined? </Text>
+          <Pressable onPress={handleLogin} hitSlop={6}>
+            <Text style={styles.footerLink}>Login</Text>
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -199,9 +210,30 @@ const styles = StyleSheet.create({
   btnSocialPressed: {
     backgroundColor: colors.muted,
   },
+  btnSocialContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
   btnSocialLabel: {
     color: colors.foreground,
     fontSize: 16,
     fontWeight: '500',
+  },
+  footer: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    fontSize: 14,
+    color: colors.mutedForeground,
+  },
+  footerLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

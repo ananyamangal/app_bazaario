@@ -3,11 +3,9 @@ import AppNavigator from './mobile/navigation/AppNavigator';
 import { AuthProvider, useAuth } from './mobile/context/AuthContext';
 import { CartProvider } from './mobile/context/CartContext';
 import { WishlistProvider } from './mobile/context/WishlistContext';
-import { AvailabilityProvider } from './mobile/context/AvailabilityContext';
 import { ChatProvider } from './mobile/context/ChatContext';
 import { CallProvider } from './mobile/context/CallContext';
 import { NotificationProvider } from './mobile/context/NotificationContext';
-import { AvailabilityCartProvider } from './mobile/context/AvailabilityCartContext';
 import { useNotifications as usePushNotifications } from './mobile/hooks/useNotifications';
 import { setAuthTokenGetter } from './mobile/api/client';
 
@@ -32,20 +30,16 @@ export default function App() {
     <AuthProvider>
       <AuthTokenSetup>
         <CartProvider>
-          <AvailabilityCartProvider>
-            <WishlistProvider>
-              <AvailabilityProvider>
-                <PushNotificationSetup />
-                <ChatProvider>
-                  <CallProvider>
-                    <NotificationProvider>
-                      <AppNavigator />
-                    </NotificationProvider>
-                  </CallProvider>
-                </ChatProvider>
-              </AvailabilityProvider>
-            </WishlistProvider>
-          </AvailabilityCartProvider>
+          <WishlistProvider>
+            <PushNotificationSetup />
+            <ChatProvider>
+              <CallProvider>
+                <NotificationProvider>
+                  <AppNavigator />
+                </NotificationProvider>
+              </CallProvider>
+            </ChatProvider>
+          </WishlistProvider>
         </CartProvider>
       </AuthTokenSetup>
     </AuthProvider>

@@ -5,8 +5,6 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { apiPostAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useAvailability } from '../context/AvailabilityContext';
-import { useAvailabilityCart } from '../context/AvailabilityCartContext';
 
 // Configure how notifications appear when the app is in foreground
 Notifications.setNotificationHandler({
@@ -19,8 +17,6 @@ Notifications.setNotificationHandler({
 
 export function useNotifications() {
   const { user } = useAuth();
-  const { clearCache, refreshPendingCount } = useAvailability();
-  const { setPending: setPendingAvailabilityCart } = useAvailabilityCart();
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const notificationListener = useRef<Notifications.Subscription | undefined>(undefined);
@@ -68,50 +64,14 @@ export function useNotifications() {
     }
   }
 
-  function handleNotificationReceived(notification: Notifications.Notification) {
-    const data = notification.request.content.data as any;
+  function handleNotificationReceived(_notification: Notifications.Notification) {
+    const data = _notification.request.content.data as any;
     console.log('[Notifications] Received:', data);
-
-    // Handle different notification types
-    if (data?.type === 'availability_request') {
-      // Seller received an availability request - refresh pending count
-      refreshPendingCount();
-    } else if (data?.type === 'availability_response') {
-      clearCache();
-      // When approved with cart payload, signal so TabNavigator can add to cart and show "Proceed to checkout"
-      if (data?.approved === 'true' && data?.productId && data?.shopId && data?.shopName && data?.productName && data?.quantity != null && data?.price != null) {
-        setPendingAvailabilityCart({
-          productId: String(data.productId),
-          shopId: String(data.shopId),
-          shopName: String(data.shopName),
-          productName: String(data.productName),
-          productImage: data.productImage ? String(data.productImage) : undefined,
-          quantity: String(data.quantity),
-          price: String(data.price),
-        });
-      }
-    }
   }
 
-  function handleNotificationResponse(response: Notifications.NotificationResponse) {
-    const data = response.notification.request.content.data as any;
+  function handleNotificationResponse(_response: Notifications.NotificationResponse) {
+    const data = _response.notification.request.content.data as any;
     console.log('[Notifications] User interacted with:', data);
-
-    // Handle navigation based on notification type
-    if (data?.type === 'availability_request' && data?.action === 'open_requests') {
-      // TODO: Navigate to availability requests screen
-    } else if (data?.type === 'availability_response' && data?.approved === 'true' && data?.productId && data?.shopId && data?.shopName && data?.productName && data?.quantity != null && data?.price != null) {
-      // Same as received: signal so TabNavigator adds to cart and shows "Proceed to checkout"
-      setPendingAvailabilityCart({
-        productId: String(data.productId),
-        shopId: String(data.shopId),
-        shopName: String(data.shopName),
-        productName: String(data.productName),
-        productImage: data.productImage ? String(data.productImage) : undefined,
-        quantity: String(data.quantity),
-        price: String(data.price),
-      });
-    }
   }
 
   return {

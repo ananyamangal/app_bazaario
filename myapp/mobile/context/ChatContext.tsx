@@ -98,6 +98,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { user, getIdToken } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const currentConversationIdRef = useRef<string | null>(null);
+  const lastEmittedRef = useRef<{ conversationId: string; content: string; at: number } | null>(null);
 
   const [isConnected, setIsConnected] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -341,6 +342,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const sendMessage = useCallback(
     (content: string, messageType = 'text', imageUrl?: string) => {
       if (!currentConversation || !socketRef.current) return;
+
+      const now = Date.now();
+      const prevEmit = lastEmittedRef.current;
+      if (
+        prevEmit &&
+        prevEmit.conversationId === currentConversation._id &&
+        prevEmit.content === content &&
+        now - prevEmit.at < 1500
+      ) {
+        return; // avoid duplicate emit (e.g. double-tap or double event)
+      }
+      lastEmittedRef.current = { conversationId: currentConversation._id, content, at: now };
 
       const myId = (user?._id ?? (user as any)?.uid ?? '').toString();
       const senderType: 'customer' | 'seller' =

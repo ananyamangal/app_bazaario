@@ -24,9 +24,10 @@ import VideoCallScreen from '../screens/VideoCallScreen';
 import IncomingCallScreen from '../screens/IncomingCallScreen';
 import ScheduleCallbackModal from '../screens/ScheduleCallbackModal';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
+import SupportScreen from '../screens/SupportScreen';
+import CategoryListScreen from '../screens/CategoryListScreen';
 import { useChat, Conversation } from '../context/ChatContext';
 import { useCall } from '../context/CallContext';
-import { useAvailabilityCart } from '../context/AvailabilityCartContext';
 import {
   TabNavigatorContext,
   type CategoryShopsParams,
@@ -48,7 +49,9 @@ type OverlayItem =
   | { type: 'EditProfile' }
   | { type: 'Conversations' }
   | { type: 'Chat'; params: { conversation: Conversation } }
-  | { type: 'Settings' };
+  | { type: 'Settings' }
+  | { type: 'Support' }
+  | { type: 'CategoryList' };
 
 const TABS: { id: TabId; label: string; icon: 'home' | 'search' | 'play-circle' | 'cart' | 'person' }[] = [
   { id: 'Home', label: 'Home', icon: 'home' },
@@ -103,39 +106,6 @@ function InvoiceReadyListener({ switchToTab }: { switchToTab: (tab: TabId) => vo
   return null;
 }
 
-// When seller approves availability, push sets pending payload; we add to cart and show "Proceed to checkout"
-function AvailabilityResponseCartListener({ switchToTab }: { switchToTab: (tab: TabId) => void }) {
-  const { pending, setPending } = useAvailabilityCart();
-  const { addItem } = useCart();
-
-  useEffect(() => {
-    if (!pending) return;
-    const qty = Math.max(1, parseInt(pending.quantity, 10) || 1);
-    const price = parseFloat(pending.price) || 0;
-    addItem(
-      {
-        productId: pending.productId,
-        shopId: pending.shopId,
-        shopName: pending.shopName,
-        name: pending.productName,
-        price,
-        image: pending.productImage,
-      },
-      qty
-    );
-    setPending(null);
-    Alert.alert(
-      'Item added to cart',
-      'It was available and has been added to your cart. Proceed to checkout.',
-      [
-        { text: 'OK', style: 'cancel' },
-        { text: 'View cart & checkout', onPress: () => switchToTab('Cart') },
-      ]
-    );
-  }, [pending, addItem, setPending, switchToTab]);
-
-  return null;
-}
 
 const BACK_EXIT_DELAY_MS = 2000;
 
@@ -178,6 +148,7 @@ export default function TabNavigator() {
     openMarketDetail: (p) => setOverlayStack((s) => [...s, { type: 'MarketDetail', params: p }]),
     openShopDetail: (p) => setOverlayStack((s) => [...s, { type: 'ShopDetail', params: p }]),
     openCategoryShops: (p) => setOverlayStack((s) => [...s, { type: 'CategoryShops', params: p }]),
+    openCategoryList: () => setOverlayStack((s) => [...s, { type: 'CategoryList' }]),
     openConversations: () => setOverlayStack((s) => [...s, { type: 'Conversations' }]),
     openSearchResults: (query) => setOverlayStack((s) => [...s, { type: 'SearchResults', params: { query } }]),
     goBack: () => setOverlayStack((s) => s.slice(0, -1)),
@@ -190,7 +161,7 @@ export default function TabNavigator() {
   const openEditProfile = () => setOverlayStack((s) => [...s, { type: 'EditProfile' }]);
   const openConversations = () => setOverlayStack((s) => [...s, { type: 'Conversations' }]);
   const openSettings = () => setOverlayStack((s) => [...s, { type: 'Settings' }]);
-  
+  const openSupport = () => setOverlayStack((s) => [...s, { type: 'Support' }]);
   const handleViewShop = (shopId: string) => {
     setOverlayStack((s) => [...s, { type: 'ShopDetail', params: { shopId } }]);
   };
@@ -250,7 +221,25 @@ export default function TabNavigator() {
       return <ChatScreen conversation={top.params.conversation} onBack={value.goBack} />;
     }
     if (top?.type === 'Settings') {
-      return <SettingsScreen onBack={value.goBack} />;
+      return <SettingsScreen onBack={value.goBack} onOpenSupport={openSupport} />;
+    }
+    if (top?.type === 'Support') {
+      return <SupportScreen onBack={value.goBack} />;
+    }
+    if (top?.type === 'CategoryList') {
+      return (
+        <CategoryListScreen
+          onBack={value.goBack}
+          onSelectCategory={(categoryId, categoryLabel) => {
+            value.goBack();
+            if (categoryId) {
+              value.openCategoryShops({ categoryId, categoryLabel });
+            } else {
+              value.openSearchResults(categoryLabel);
+            }
+          }}
+        />
+      );
     }
     if (top?.type === 'SearchResults') {
       return <SearchResultsScreen onBack={value.goBack} initialQuery={top.params.query} />;
@@ -294,7 +283,6 @@ export default function TabNavigator() {
   return (
     <TabNavigatorContext.Provider value={value}>
       <InvoiceReadyListener switchToTab={value.switchToTab} />
-      <AvailabilityResponseCartListener switchToTab={value.switchToTab} />
       <View style={styles.container}>
         <View style={styles.content}>
           {renderContent()}

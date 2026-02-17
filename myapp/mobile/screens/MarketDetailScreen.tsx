@@ -63,6 +63,7 @@ export default function MarketDetailScreen({
   location,
   rating,
   description,
+  imageUrl,
   onBack,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -101,6 +102,12 @@ export default function MarketDetailScreen({
     // TODO: implement video call
   }
 
+  const heroImageUri =
+    imageUrl ||
+    (shops.length > 0
+      ? ((shops[0] as any).banner || (shops[0] as any).images?.[0] || null)
+      : null);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -123,7 +130,11 @@ export default function MarketDetailScreen({
         {/* Market Hero */}
         <View style={styles.heroWrap}>
           <View style={styles.heroImage}>
-            <View style={styles.heroImagePlaceholder} />
+            {heroImageUri ? (
+              <Image source={{ uri: heroImageUri }} style={styles.heroImageBackground} />
+            ) : (
+              <View style={styles.heroImagePlaceholder} />
+            )}
             <View style={styles.backBtnWrap}>
               <BackButton onPress={onBack} variant="floating" iconColor={colors.card} />
             </View>
@@ -147,7 +158,16 @@ export default function MarketDetailScreen({
         </Text>
         {shops.map((shop) => (
           <Pressable key={shop._id} onPress={() => handleVisitShop(shop._id)} style={({ pressed }) => [styles.shopCard, pressed && styles.cardPressed]}>
-            <View style={styles.shopImage} />
+            {((shop as any).banner || (shop as any).images?.[0]) ? (
+              <Image
+                source={{ uri: (shop as any).banner || (shop as any).images[0] }}
+                style={styles.shopImage}
+              />
+            ) : (
+              <View style={[styles.shopImage, styles.shopImagePlaceholder]}>
+                <Ionicons name="storefront-outline" size={28} color={colors.mutedForeground} />
+              </View>
+            )}
             <View style={styles.availablePill}>
               <Text style={styles.availableText}>{shop.isOpen !== false ? 'Available' : 'Closed'}</Text>
             </View>
@@ -206,13 +226,16 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    backgroundColor: colors.muted,
     position: 'relative',
     marginBottom: 12,
   },
   heroImagePlaceholder: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.border,
+  },
+   heroImageBackground: {
+    ...StyleSheet.absoluteFillObject,
+    resizeMode: 'cover',
   },
   backBtnWrap: {
     position: 'absolute',
@@ -258,9 +281,13 @@ const styles = StyleSheet.create({
   shopImage: {
     width: SHOP_IMAGE_SIZE,
     height: SHOP_IMAGE_SIZE,
-    backgroundColor: colors.muted,
     borderRadius: radius.md,
     margin: 12,
+  },
+  shopImagePlaceholder: {
+    backgroundColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   availablePill: {
     position: 'absolute',

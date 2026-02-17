@@ -10,7 +10,6 @@ import SellerReviewsScreen from '../screens/seller/SellerReviewsScreen';
 import SellerOrdersScreen from '../screens/seller/SellerOrdersScreen';
 import SellerProductsScreen from '../screens/seller/SellerProductsScreen';
 import SellerProfileTabScreen from '../screens/seller/SellerProfileTabScreen';
-import SellerAvailabilityRequestsScreen from '../screens/seller/SellerAvailabilityRequestsScreen';
 import ReelInsightsScreen from '../screens/seller/ReelInsightsScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -26,7 +25,6 @@ import { useAuth } from '../context/AuthContext';
 
 export type SellerTabId = 'Dashboard' | 'Products' | 'Orders' | 'Calls' | 'Profile';
 type OverlayScreen = 
-  | { type: 'AvailabilityRequests' }
   | { type: 'ReelInsights' }
   | { type: 'Conversations' }
   | { type: 'Chat'; conversation: Conversation }
@@ -93,7 +91,6 @@ export default function SellerTabNavigator() {
   const { totalUnread } = useChat();
   const { callState, currentCall } = useCall();
 
-  const openAvailabilityRequests = () => setOverlay({ type: 'AvailabilityRequests' });
   const openReelInsights = () => setOverlay({ type: 'ReelInsights' });
   const openConversations = () => setOverlay({ type: 'Conversations' });
   const openReviews = () => setOverlay({ type: 'Reviews' });
@@ -116,9 +113,6 @@ export default function SellerTabNavigator() {
   }, []);
 
   // Render overlay screen if active
-  if (overlay?.type === 'AvailabilityRequests') {
-    return <SellerAvailabilityRequestsScreen onBack={closeOverlay} />;
-  }
   if (overlay?.type === 'ReelInsights') {
     return <ReelInsightsScreen onBack={closeOverlay} />;
   }
@@ -138,7 +132,6 @@ export default function SellerTabNavigator() {
       case 'Dashboard':
         return (
           <SellerDashboardScreen
-            onOpenAvailabilityRequests={openAvailabilityRequests}
             onOpenReelInsights={openReelInsights}
             onOpenReviews={openReviews}
             onOpenConversations={openConversations}
@@ -153,7 +146,7 @@ export default function SellerTabNavigator() {
       case 'Profile':
         return <SellerProfileTabScreen onOpenConversations={openConversations} />;
       default:
-        return <SellerDashboardScreen onOpenAvailabilityRequests={openAvailabilityRequests} />;
+        return <SellerDashboardScreen />;
     }
   };
 
