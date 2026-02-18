@@ -211,6 +211,8 @@ export default function OtpVerifyScreen({ navigation, route }: Props) {
                 selectTextOnFocus
                 style={styles.otpInput}
                 editable={!isLoading}
+                textContentType={Platform.OS === 'ios' ? 'oneTimeCode' : 'none'}
+                importantForAutofill="yes"
               />
             </View>
           ))}

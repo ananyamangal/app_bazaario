@@ -37,7 +37,7 @@ export default function ScreenHeader({
         !transparent && styles.headerBordered,
       ]}
     >
-      <BackButton onPress={onBack} iconColor={backIconColor} />
+      <BackButton onPress={onBack} iconColor={backIconColor} withPadding={false} />
       {title != null ? (
         <Text style={styles.title} numberOfLines={1}>
           {title}

@@ -1,20 +1,25 @@
 import React from 'react';
-import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 
-const BACK_BUTTON_HIT_SLOP = 12;
+/** Minimum touch target (iOS HIG). Hit area extended so button is easy to tap. */
+const MIN_TOUCH_TARGET = 44;
 const BACK_ICON_SIZE = 24;
-/** Min touch target 44pt: (44 - BACK_ICON_SIZE) / 2 = 10 */
-const BACK_BUTTON_PADDING = 10;
+/** Padding so icon + padding = MIN_TOUCH_TARGET */
+const BACK_BUTTON_PADDING = (MIN_TOUCH_TARGET - BACK_ICON_SIZE) / 2;
+/** Extra hit area around the button for easier tapping */
+const HIT_SLOP = { top: 16, bottom: 16, left: 16, right: 16 };
 
 type Props = {
   onPress: () => void;
   iconColor?: string;
   /** Use on hero/image overlays for better visibility */
   variant?: 'default' | 'floating';
+  /** Wrap in a padded container so the button has proper top/row padding and is always clickable (default true) */
+  withPadding?: boolean;
   style?: ViewStyle;
 };
 
@@ -22,12 +27,13 @@ export default function BackButton({
   onPress,
   iconColor = colors.foreground,
   variant = 'default',
+  withPadding = true,
   style,
 }: Props) {
-  return (
+  const pressable = (
     <Pressable
       onPress={onPress}
-      hitSlop={BACK_BUTTON_HIT_SLOP}
+      hitSlop={HIT_SLOP}
       style={({ pressed }) => [
         styles.button,
         variant === 'floating' && styles.floating,
@@ -40,10 +46,25 @@ export default function BackButton({
       <Ionicons name="arrow-back" size={BACK_ICON_SIZE} color={iconColor} />
     </Pressable>
   );
+
+  if (withPadding && variant === 'default') {
+    return <View style={styles.paddedWrapper}>{pressable}</View>;
+  }
+  return pressable;
 }
 
 const styles = StyleSheet.create({
+  paddedWrapper: {
+    alignSelf: 'flex-start',
+    minHeight: MIN_TOUCH_TARGET,
+    paddingVertical: spacing.sm,
+    paddingRight: spacing.md,
+    marginBottom: spacing.sm,
+    justifyContent: 'center',
+  },
   button: {
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
     padding: BACK_BUTTON_PADDING,
     marginRight: spacing.xs,
     alignItems: 'center',
@@ -52,10 +73,10 @@ const styles = StyleSheet.create({
   floating: {
     backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 22,
-    width: 44,
-    height: 44,
+    width: MIN_TOUCH_TARGET,
+    height: MIN_TOUCH_TARGET,
     marginRight: 0,
-    padding: (44 - BACK_ICON_SIZE) / 2,
+    padding: BACK_BUTTON_PADDING,
   },
   pressed: {
     opacity: 0.7,

@@ -2,6 +2,9 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Image,
   ImageSourcePropType,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 import NotificationBell from '../components/NotificationBell';
 import { useTabNavigator } from '../navigation/TabContext';
@@ -21,6 +25,8 @@ import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { apiGet } from '../api/client';
 import { useChat } from '../context/ChatContext';
+import { useCheckout } from '../context/CheckoutContext';
+import type { SavedAddress } from '../context/CheckoutContext';
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -105,11 +111,16 @@ const CATEGORY_DISPLAY: { name: string; icon: keyof typeof Ionicons.glyphMap }[]
 // Component
 // -----------------------------------------------------------------------------
 
+const DELIVERY_BAR_PINK = '#FCE7F3'; // light pink
+
 export default function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { switchToTab, openMarketDetail, openCategoryShops, openCategoryList, openShopDetail, openConversations, openSearchResults } = useTabNavigator();
   const { totalUnread } = useChat();
+  const { address, setAddress, savedAddresses } = useCheckout();
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -344,10 +355,46 @@ export default function HomeScreen() {
     ? searchResults.shops.length + searchResults.markets.length + searchResults.products.length
     : 0;
 
+  const hasAnyAddress = savedAddresses.length > 0 || address != null;
+  const deliveryAddressText = address
+    ? `${address.line1}${address.line2 ? `, ${address.line2}` : ''}, ${address.city}${address.pincode ? ` - ${address.pincode}` : ''}`
+    : 'Add delivery address';
+
+  function handleSelectAddress(a: SavedAddress) {
+    setAddress(a);
+    setShowAddressModal(false);
+  }
+
+  function handleAddNewAddress() {
+    setShowAddressModal(false);
+    navigation.navigate('CheckoutAddress' as never);
+  }
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      {/* Delivery bar - light pink (only when user has at least one address) */}
+      {hasAnyAddress && (
+        <Pressable
+          style={[styles.deliveryBar, { paddingTop: insets.top + 10, paddingBottom: 10 }]}
+          onPress={() => setShowAddressModal(true)}
+        >
+          <View style={styles.deliveryBarContent}>
+            <Ionicons name="location-outline" size={18} color="#9D174D" />
+            <View style={styles.deliveryBarTextWrap}>
+              <Text style={styles.deliveryBarLabel}>Delivering to</Text>
+              <Text style={styles.deliveryBarAddress} numberOfLines={1}>{deliveryAddressText}</Text>
+            </View>
+            <Ionicons name="chevron-down" size={20} color="#9D174D" />
+          </View>
+        </Pressable>
+      )}
+
       {/* Header */}
-      <View style={[styles.headerContainer, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.headerContainer, { paddingTop: hasAnyAddress ? 8 : insets.top + 8 }]}>
         <View style={[styles.header, searchFocused && styles.headerExpanded]}>
           <>
             {!searchFocused && (
@@ -489,7 +536,7 @@ export default function HomeScreen() {
             resizeMode="cover"
           />
           <View style={styles.heroOverlay} />
-          <Text style={styles.heroHeading}>Shop on video call</Text>
+          <Text style={styles.heroHeading}>Shop on Video Call</Text>
           <Text style={styles.heroSub}>From your favourite offline stores</Text>
           <Pressable onPress={handleStartExploring} style={({ pressed: p }) => [styles.heroCta, p && styles.ctaPressed]}>
             <Text style={styles.heroCtaLabel}>Start Exploring</Text>
@@ -600,8 +647,43 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </View>
-      </ScrollView >
-    </View >
+      </ScrollView>
+
+      {/* Address selection modal */}
+      <Modal
+        visible={showAddressModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddressModal(false)}
+      >
+        <Pressable style={styles.addressModalOverlay} onPress={() => setShowAddressModal(false)}>
+          <View style={styles.addressModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.addressModalHandle} />
+            <Text style={styles.addressModalTitle}>Delivery address</Text>
+            <ScrollView style={styles.addressModalList} keyboardShouldPersistTaps="handled">
+              {savedAddresses.map((a) => (
+                <Pressable
+                  key={a.id}
+                  onPress={() => handleSelectAddress(a)}
+                  style={[styles.addressModalItem, address?.id === a.id && styles.addressModalItemSelected]}
+                >
+                  <View style={styles.addressModalItemBody}>
+                    <Text style={styles.addressModalItemLabel}>{a.label}</Text>
+                    <Text style={styles.addressModalItemLine}>{a.line1}{a.line2 ? `, ${a.line2}` : ''}</Text>
+                    <Text style={styles.addressModalItemCity}>{a.city}{a.pincode ? ` - ${a.pincode}` : ''}</Text>
+                  </View>
+                  {address?.id === a.id && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
+                </Pressable>
+              ))}
+            </ScrollView>
+            <Pressable onPress={handleAddNewAddress} style={styles.addressModalAddBtn}>
+              <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+              <Text style={styles.addressModalAddText}>Add new address</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -614,6 +696,88 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: HORIZONTAL_PADDING, paddingBottom: 100 },
   pressed: { opacity: 0.85 },
+
+  deliveryBar: {
+    backgroundColor: DELIVERY_BAR_PINK,
+    paddingHorizontal: HORIZONTAL_PADDING,
+  },
+  deliveryBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  deliveryBarTextWrap: { flex: 1, minWidth: 0 },
+  deliveryBarLabel: {
+    fontSize: 12,
+    color: '#9D174D',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  deliveryBarAddress: {
+    fontSize: 14,
+    color: '#831843',
+    fontWeight: '500',
+  },
+
+  addressModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  addressModalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingBottom: 34,
+    maxHeight: '70%',
+  },
+  addressModalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  addressModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.foreground,
+    marginBottom: 16,
+  },
+  addressModalList: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  addressModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+    padding: 14,
+    marginBottom: 10,
+  },
+  addressModalItemSelected: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  addressModalItemBody: { flex: 1, minWidth: 0 },
+  addressModalItemLabel: { fontSize: 15, fontWeight: '600', color: colors.foreground },
+  addressModalItemLine: { fontSize: 14, color: colors.mutedForeground, marginTop: 2 },
+  addressModalItemCity: { fontSize: 13, color: colors.mutedForeground, marginTop: 2 },
+  addressModalAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: radius.xl,
+  },
+  addressModalAddText: { fontSize: 16, fontWeight: '600', color: colors.primary },
 
   headerContainer: {
     backgroundColor: colors.card,

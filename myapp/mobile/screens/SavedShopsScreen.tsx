@@ -92,13 +92,7 @@ export default function SavedShopsScreen({ onBack, onViewShop }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={onBack} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-        </Pressable>
-        <Text style={styles.title}>Saved Shops</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader onBack={onBack} title="Saved Shops" />
 
       <ScrollView
         style={styles.scroll}

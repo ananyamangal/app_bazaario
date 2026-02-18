@@ -3,6 +3,8 @@ import {
   FlatList,
   Image,
   ImageSourcePropType,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -291,7 +293,11 @@ export default function ExploreScreen() {
     : 0;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
       {/* Header */}
       <View style={[styles.headerContainer, { paddingTop: insets.top + 8 }]}>
         <View style={[styles.header, searchFocused && styles.headerExpanded]}>
@@ -432,7 +438,7 @@ export default function ExploreScreen() {
         renderItem={renderCard}
         showsVerticalScrollIndicator={false}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -5,6 +5,7 @@ import {
   Image,
   ImageSourcePropType,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -28,14 +29,14 @@ import { useAuth } from '../../context/AuthContext';
 // Constants
 // -----------------------------------------------------------------------------
 
-const LOGO_SIZE = 200;
-const GAP_LOGO_HEADING = 30;
+const LOGO_SIZE = 160;
+const GAP_LOGO_HEADING = 20;
 const GAP_HEADING_SUB = 8;
-const GAP_SUB_TOGGLE = 24;
-const GAP_TOGGLE_FORM = 24;
+const GAP_SUB_TOGGLE = 16;
+const GAP_TOGGLE_FORM = 20;
 const GAP_LABEL_INPUT = 8;
-const GAP_INPUT_BUTTON = 24;
-const GAP_BUTTON_FOOTER = 28;
+const GAP_INPUT_BUTTON = 20;
+const GAP_BUTTON_FOOTER = 20;
 const HORIZONTAL_PADDING = 24;
 const INPUT_PADDING_H = 16;
 const INPUT_PADDING_V = 14;
@@ -102,11 +103,11 @@ export default function LoginScreen({ navigation }: Props) {
   }
 
   function handleTerms() {
-    // TODO: open Terms of Service
+    Linking.openURL('https://bazaario-privacypolicy.vercel.app/terms');
   }
 
   function handlePrivacy() {
-    // TODO: open Privacy Policy
+    Linking.openURL('https://bazaario-privacypolicy.vercel.app/');
   }
 
   const canSendOtp = phone.replace(/\D/g, '').length >= 10 && !isLoading;
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: HORIZONTAL_PADDING,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   backRow: { alignSelf: 'flex-start', marginBottom: spacing.sm },
   content: {

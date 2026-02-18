@@ -5,6 +5,7 @@ import {
   Image,
   ImageSourcePropType,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -126,7 +127,15 @@ export default function CustomerSignUpScreen({ navigation }: Props) {
         </Pressable>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>By signing up, you agree to our Terms of Service and Privacy Policy.</Text>
+          <Text style={styles.footerText}>By signing up, you agree to our </Text>
+          <Pressable onPress={() => Linking.openURL('https://bazaario-privacypolicy.vercel.app/terms')} hitSlop={6}>
+            <Text style={styles.footerLink}>Terms of Service</Text>
+          </Pressable>
+          <Text style={styles.footerText}> and </Text>
+          <Pressable onPress={() => Linking.openURL('https://bazaario-privacypolicy.vercel.app/')} hitSlop={6}>
+            <Text style={styles.footerLink}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={styles.footerText}>.</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -160,6 +169,7 @@ const styles = StyleSheet.create({
   orRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   orLine: { flex: 1, height: 1, backgroundColor: colors.border },
   orText: { marginHorizontal: 12, fontSize: 14, color: colors.mutedForeground },
-  footer: { marginTop: 24 },
+  footer: { marginTop: 24, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' },
   footerText: { fontSize: 13, color: colors.mutedForeground, textAlign: 'center' },
+  footerLink: { fontSize: 13, fontWeight: '600', color: colors.primary },
 });

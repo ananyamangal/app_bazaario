@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,6 +37,17 @@ export default function SettingsScreen({ onBack, onOpenSupport }: Props) {
 
   function handleAbout() {
     Alert.alert('About Bazaario', 'Bazaario helps you shop from nearby markets with live video calls and instant chat.');
+  }
+
+  const PRIVACY_URL = 'https://bazaario-privacypolicy.vercel.app/';
+  const TERMS_URL = 'https://bazaario-privacypolicy.vercel.app/terms';
+
+  function openPrivacyPolicy() {
+    Linking.openURL(PRIVACY_URL);
+  }
+
+  function openTerms() {
+    Linking.openURL(TERMS_URL);
   }
 
   return (
@@ -124,6 +136,34 @@ export default function SettingsScreen({ onBack, onOpenSupport }: Props) {
           ) : null}
           <Pressable
             style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={openPrivacyPolicy}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={colors.foreground} />
+              <View style={styles.rowTextWrap}>
+                <Text style={styles.rowTitle}>Privacy Policy</Text>
+                <Text style={styles.rowSub}>How we use your data</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onPress={openTerms}
+          >
+            <View style={styles.rowLeft}>
+              <Ionicons name="document-text-outline" size={20} color={colors.foreground} />
+              <View style={styles.rowTextWrap}>
+                <Text style={styles.rowTitle}>Terms and Conditions</Text>
+                <Text style={styles.rowSub}>Terms of use</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             onPress={handleAbout}
           >
             <View style={styles.rowLeft}>
@@ -168,12 +208,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 10,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   rowLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     gap: 10,
+    minWidth: 0,
   },
   rowTextWrap: {
     flex: 1,

@@ -3,6 +3,8 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -236,7 +238,12 @@ export default function SearchResultsScreen({ onBack, initialQuery = '' }: Props
   const totalResults = results.shops.length + results.markets.length + results.products.length;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <View style={[styles.inner, { paddingTop: insets.top + spacing.md }]}>
       {/* Header */}
       <View style={styles.header}>
         <BackButton onPress={onBack} />
@@ -324,7 +331,8 @@ export default function SearchResultsScreen({ onBack, initialQuery = '' }: Props
           )}
         </ScrollView>
       )}
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -332,6 +340,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  inner: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

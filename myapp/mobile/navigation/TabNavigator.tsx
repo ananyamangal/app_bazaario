@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View, Alert, BackHandler, Platform, ToastAndroid } from 'react-native';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Pressable, PanResponder, StyleSheet, Text, View, Alert, BackHandler, Platform, ToastAndroid } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ShopDetailScreen from '../screens/ShopDetailScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
-import WishlistScreen from '../screens/WishlistScreen';
 import SavedShopsScreen from '../screens/SavedShopsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
@@ -44,7 +43,6 @@ type OverlayItem =
   | { type: 'ShopDetail'; params: ShopDetailParams }
   | { type: 'CategoryShops'; params: CategoryShopsParams }
   | { type: 'MyOrders' }
-  | { type: 'Wishlist' }
   | { type: 'SavedShops' }
   | { type: 'EditProfile' }
   | { type: 'Conversations' }
@@ -109,12 +107,34 @@ function InvoiceReadyListener({ switchToTab }: { switchToTab: (tab: TabId) => vo
 
 const BACK_EXIT_DELAY_MS = 2000;
 
+const LEFT_EDGE_SWIPE_WIDTH = 28;
+const SWIPE_BACK_THRESHOLD = 50;
+
 export default function TabNavigator() {
   const [active, setActive] = useState<TabId>('Home');
   const [overlayStack, setOverlayStack] = useState<OverlayItem[]>([]);
   const lastBackPress = useRef(0);
+  const swipeStartX = useRef(0);
   const insets = useSafeAreaInsets();
   const top = overlayStack[overlayStack.length - 1];
+
+  const goBack = useCallback(() => setOverlayStack((s) => s.slice(0, -1)), []);
+  const overlaySwipeBack = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetResponder: () => false,
+        onMoveShouldSetResponder: (_, evt) => evt.nativeEvent.pageX <= LEFT_EDGE_SWIPE_WIDTH,
+        onPanResponderGrant: (_, evt) => {
+          swipeStartX.current = evt.nativeEvent.pageX;
+        },
+        onPanResponderRelease: (_, evt) => {
+          if (evt.nativeEvent.pageX - swipeStartX.current >= SWIPE_BACK_THRESHOLD) {
+            goBack();
+          }
+        },
+      }),
+    [goBack]
+  );
 
   // Android back: pop overlay or double-tap to exit
   useEffect(() => {
@@ -151,12 +171,11 @@ export default function TabNavigator() {
     openCategoryList: () => setOverlayStack((s) => [...s, { type: 'CategoryList' }]),
     openConversations: () => setOverlayStack((s) => [...s, { type: 'Conversations' }]),
     openSearchResults: (query) => setOverlayStack((s) => [...s, { type: 'SearchResults', params: { query } }]),
-    goBack: () => setOverlayStack((s) => s.slice(0, -1)),
+    goBack,
   };
 
   // Helper functions for profile overlays
   const openOrders = () => setOverlayStack((s) => [...s, { type: 'MyOrders' }]);
-  const openWishlist = () => setOverlayStack((s) => [...s, { type: 'Wishlist' }]);
   const openSavedShops = () => setOverlayStack((s) => [...s, { type: 'SavedShops' }]);
   const openEditProfile = () => setOverlayStack((s) => [...s, { type: 'EditProfile' }]);
   const openConversations = () => setOverlayStack((s) => [...s, { type: 'Conversations' }]);
@@ -204,9 +223,6 @@ export default function TabNavigator() {
     }
     if (top?.type === 'MyOrders') {
       return <MyOrdersScreen onBack={value.goBack} />;
-    }
-    if (top?.type === 'Wishlist') {
-      return <WishlistScreen onBack={value.goBack} onViewShop={handleViewShop} />;
     }
     if (top?.type === 'SavedShops') {
       return <SavedShopsScreen onBack={value.goBack} onViewShop={(shopId) => value.openShopDetail({ shopId })} />;
@@ -259,7 +275,6 @@ export default function TabNavigator() {
         return (
           <ProfileScreen
             onOpenOrders={openOrders}
-            onOpenWishlist={openWishlist}
             onOpenSavedShops={openSavedShops}
             onOpenEditProfile={openEditProfile}
             onOpenSettings={openSettings}
@@ -285,6 +300,13 @@ export default function TabNavigator() {
       <InvoiceReadyListener switchToTab={value.switchToTab} />
       <View style={styles.container}>
         <View style={styles.content}>
+          {overlayStack.length > 0 && (
+            <View
+              style={styles.leftEdgeSwipeStrip}
+              {...overlaySwipeBack.panHandlers}
+              pointerEvents="box-only"
+            />
+          )}
           {renderContent()}
         </View>
         <View style={[
@@ -351,6 +373,14 @@ export default function TabNavigator() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
+  leftEdgeSwipeStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: LEFT_EDGE_SWIPE_WIDTH,
+    zIndex: 10,
+  },
   tabBar: {
     flexDirection: 'row',
     backgroundColor: colors.card,

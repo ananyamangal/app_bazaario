@@ -36,7 +36,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 // Auth stack - shown when user is NOT authenticated
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <Stack.Screen name="Auth" component={AuthScreen} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
       <Stack.Screen name="GoogleRoleSelect" component={GoogleRoleSelectScreen} />
@@ -68,7 +74,13 @@ function SellerOnboardingStack() {
 // Customer stack - shown when customer is authenticated
 function CustomerStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+      }}
+    >
       <Stack.Screen name="Home" component={TabNavigator} />
       <Stack.Screen name="CheckoutAddress" component={CheckoutAddressScreen} />
       <Stack.Screen name="CheckoutSchedule" component={CheckoutScheduleScreen} />

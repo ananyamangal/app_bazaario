@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/spacing';
 import { useChat, type Conversation } from '../context/ChatContext';
-import { apiGet, apiPost, apiPostAuth } from '../api/client';
+import { apiGet, apiGetAuth, apiPost, apiPostAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 // -----------------------------------------------------------------------------
@@ -363,12 +363,15 @@ export default function ShopReelsScreen({ onShopPress, onOpenChat }: Props) {
     ? reels.filter((r) => r.marketId === selectedMarketId)
     : reels;
 
-  // Fetch reels and markets from API
+  // Fetch reels and markets from API (use auth when logged in so isLiked is correct and persists)
   useEffect(() => {
     async function loadReels() {
       try {
         setLoading(true);
-        const response = await apiGet<{ reels: ShopReel[]; markets: MarketOption[] }>('/reels');
+        const fetchReels = user
+          ? apiGetAuth<{ reels: ShopReel[]; markets: MarketOption[] }>('/reels')
+          : apiGet<{ reels: ShopReel[]; markets: MarketOption[] }>('/reels');
+        const response = await fetchReels;
         if (response.reels && response.reels.length > 0) {
           setReels(response.reels);
           setMarkets(response.markets || []);
@@ -385,7 +388,7 @@ export default function ShopReelsScreen({ onShopPress, onOpenChat }: Props) {
       }
     }
     loadReels();
-  }, []);
+  }, [user]);
 
   const viewabilityConfig = useRef({
     itemVisiblePercentThreshold: 50,

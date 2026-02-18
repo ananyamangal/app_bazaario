@@ -1,19 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Image,
-  ImageSourcePropType,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import NotificationBell from '../components/NotificationBell';
 import { useTabNavigator, type MarketDetailParams } from '../navigation/TabContext';
 import BackButton from '../components/BackButton';
+import NotificationBell from '../components/NotificationBell';
 import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { apiGet } from '../api/client';
@@ -22,7 +24,6 @@ import { apiGet } from '../api/client';
 // Constants
 // -----------------------------------------------------------------------------
 
-const LOGO_SIZE = 36;
 const HERO_HEIGHT = 180;
 const HORIZONTAL_PADDING = 16;
 const SHOP_IMAGE_SIZE = 80;
@@ -31,12 +32,6 @@ const RATING_YELLOW = '#FEF3C7';
 const SHADOW_OPACITY = 0.08;
 const SHADOW_RADIUS = 8;
 const SHADOW_OFFSET = { width: 0, height: 2 };
-
-// -----------------------------------------------------------------------------
-// Assets
-// -----------------------------------------------------------------------------
-
-const splashLogo: ImageSourcePropType = require('../../assets/bazaario-logo.png');
 
 // -----------------------------------------------------------------------------
 // Types
@@ -49,6 +44,7 @@ type Shop = {
   description?: string;
   ratingAverage?: number;
   isOpen?: boolean;
+  categories?: string[];
 };
 
 type Props = MarketDetailParams & { onBack: () => void };
@@ -67,9 +63,12 @@ export default function MarketDetailScreen({
   onBack,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const { switchToTab, openShopDetail } = useTabNavigator();
+  const { openShopDetail } = useTabNavigator();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const searchLayoutY = useRef(0);
 
   useEffect(() => {
     async function loadShops() {
@@ -86,13 +85,16 @@ export default function MarketDetailScreen({
     loadShops();
   }, [marketId]);
 
-  function handleLogo() {
-    switchToTab('Home');
-  }
-
-  function handleSearch() {
-    switchToTab('Explore');
-  }
+  const filteredShops = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return shops;
+    return shops.filter((shop) => {
+      const name = (shop.shopName ?? shop.name ?? '').toLowerCase();
+      const desc = (shop.description ?? '').toLowerCase();
+      const categories = (shop.categories ?? []).join(' ').toLowerCase();
+      return name.includes(q) || desc.includes(q) || categories.includes(q);
+    });
+  }, [shops, searchQuery]);
 
   function handleVisitShop(shopId: string) {
     openShopDetail({ shopId });
@@ -109,24 +111,26 @@ export default function MarketDetailScreen({
       : null);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      {/* Top bar: back button (no logo), notification */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10, paddingBottom: 10 }]}>
+        <BackButton onPress={onBack} withPadding={false} />
+        <View style={styles.topBarSpacer} />
+        <NotificationBell dropdownTop={insets.top + 56} />
+      </View>
+
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={handleLogo} style={({ pressed }) => [styles.logoRow, pressed && styles.pressed]}>
-            <Image source={splashLogo} style={styles.logo} resizeMode="contain" />
-            <Text style={styles.logoText}>Bazaario</Text>
-          </Pressable>
-          <Pressable onPress={handleSearch} style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]} hitSlop={8}>
-            <Ionicons name="search" size={22} color={colors.foreground} />
-          </Pressable>
-          <NotificationBell dropdownTop={insets.top + 56} />
-        </View>
-
         {/* Market Hero */}
         <View style={styles.heroWrap}>
           <View style={styles.heroImage}>
@@ -135,9 +139,6 @@ export default function MarketDetailScreen({
             ) : (
               <View style={styles.heroImagePlaceholder} />
             )}
-            <View style={styles.backBtnWrap}>
-              <BackButton onPress={onBack} variant="floating" iconColor={colors.card} />
-            </View>
           </View>
           <Text style={styles.heroTitle}>{name}</Text>
           <View style={styles.badges}>
@@ -152,11 +153,45 @@ export default function MarketDetailScreen({
           <Text style={styles.heroDesc}>{description}</Text>
         </View>
 
+        {/* Search bar - search stores, categories within this market */}
+        <View
+          style={styles.searchWrap}
+          onLayout={(evt) => {
+            searchLayoutY.current = evt.nativeEvent.layout.y;
+          }}
+        >
+          <Ionicons name="search" size={20} color={colors.mutedForeground} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search stores, categories..."
+            placeholderTextColor={colors.mutedForeground}
+            returnKeyType="search"
+            onFocus={() => {
+              setTimeout(() => {
+                scrollRef.current?.scrollTo({
+                  y: Math.max(0, searchLayoutY.current - 80),
+                  animated: true,
+                });
+              }, 300);
+            }}
+          />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8} style={styles.searchClear}>
+              <Ionicons name="close-circle" size={20} color={colors.mutedForeground} />
+            </Pressable>
+          )}
+        </View>
+
         {/* Shops */}
         <Text style={styles.sectionTitle}>
-          {loading ? 'Loading shops...' : `Shops in ${name}`}
+          {loading ? 'Loading shops...' : `Shops in ${name}${searchQuery.trim() ? ` (${filteredShops.length})` : ''}`}
         </Text>
-        {shops.map((shop) => (
+        {!loading && searchQuery.trim() && filteredShops.length === 0 && (
+          <Text style={styles.emptySearch}>No stores or categories match "{searchQuery.trim()}"</Text>
+        )}
+        {filteredShops.map((shop) => (
           <Pressable key={shop._id} onPress={() => handleVisitShop(shop._id)} style={({ pressed }) => [styles.shopCard, pressed && styles.cardPressed]}>
             {((shop as any).banner || (shop as any).images?.[0]) ? (
               <Image
@@ -193,7 +228,7 @@ export default function MarketDetailScreen({
           </Pressable>
         ))}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -209,19 +244,7 @@ const styles = StyleSheet.create({
   btnPressed: { opacity: 0.9 },
   cardPressed: { opacity: 0.98 },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: 12,
-    marginBottom: 4,
-    backgroundColor: colors.card,
-  },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-  logo: { width: LOGO_SIZE, height: LOGO_SIZE },
-  logoText: { fontSize: 18, fontWeight: '700', color: colors.foreground, fontFamily: 'Impact' },
-  iconBtn: { padding: 4, marginLeft: 8, position: 'relative' as const },
-
-  heroWrap: { marginBottom: 24 },
+  heroWrap: { marginBottom: 20 },
   heroImage: {
     height: HERO_HEIGHT,
     borderRadius: radius.lg,
@@ -237,11 +260,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     resizeMode: 'cover',
   },
-  backBtnWrap: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: HORIZONTAL_PADDING,
+    backgroundColor: colors.card,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
+  topBarSpacer: { flex: 1 },
   heroTitle: { fontSize: 24, fontWeight: '700', color: colors.foreground, marginBottom: 10 },
   badges: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   locationBadge: {
@@ -261,7 +288,33 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl,
   },
   ratingText: { fontSize: 13, fontWeight: '600', color: colors.foreground },
-  heroDesc: { fontSize: 15, color: colors.mutedForeground, lineHeight: 22 },
+  heroDesc: { fontSize: 15, color: colors.mutedForeground, lineHeight: 22, marginBottom: 16 },
+
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.foreground,
+    paddingVertical: 12,
+  },
+  searchClear: { padding: 4 },
+  emptySearch: {
+    fontSize: 15,
+    color: colors.mutedForeground,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
 
   sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 14 },
 

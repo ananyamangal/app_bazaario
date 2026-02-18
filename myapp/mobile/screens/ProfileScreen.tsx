@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationBell from '../components/NotificationBell';
 import { useTabNavigator } from '../navigation/TabContext';
 import { useAuth } from '../context/AuthContext';
-import { useWishlist } from '../context/WishlistContext';
 import { useChat } from '../context/ChatContext';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/spacing';
@@ -44,18 +43,16 @@ const splashLogo: ImageSourcePropType = require('../../assets/bazaario-logo.png'
 
 type Props = {
   onOpenOrders?: () => void;
-  onOpenWishlist?: () => void;
   onOpenSavedShops?: () => void;
   onOpenEditProfile?: () => void;
   onOpenSettings?: () => void;
   onOpenConversations?: () => void;
 };
 
-export default function ProfileScreen({ onOpenOrders, onOpenWishlist, onOpenSavedShops, onOpenEditProfile, onOpenSettings, onOpenConversations }: Props) {
+export default function ProfileScreen({ onOpenOrders, onOpenSavedShops, onOpenEditProfile, onOpenSettings, onOpenConversations }: Props) {
   const insets = useSafeAreaInsets();
   const { switchToTab } = useTabNavigator();
   const { signOut, user, profile } = useAuth();
-  const { totalItems: wishlistCount } = useWishlist();
   const { totalUnread: messageCount } = useChat();
 
   const customerProfile = profile as any;
@@ -75,10 +72,6 @@ export default function ProfileScreen({ onOpenOrders, onOpenWishlist, onOpenSave
 
   function handleMyOrders() {
     onOpenOrders?.();
-  }
-
-  function handleWishlist() {
-    onOpenWishlist?.();
   }
 
   function handleSavedShops() {
@@ -116,14 +109,6 @@ export default function ProfileScreen({ onOpenOrders, onOpenWishlist, onOpenSave
       iconBg: false,
       badge: messageCount > 0 ? messageCount : undefined,
       onPress: handleMessages,
-    },
-    { 
-      id: 'wishlist', 
-      label: 'Wishlist', 
-      icon: 'heart-outline' as const, 
-      iconBg: false,
-      badge: wishlistCount > 0 ? wishlistCount : undefined,
-      onPress: handleWishlist,
     },
     { 
       id: 'savedShops', 

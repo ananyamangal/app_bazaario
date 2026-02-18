@@ -797,7 +797,7 @@ router.put("/users/profile", authenticate, async (req: Request, res: Response) =
     await user.save();
 
     // Update customer profile with address (customers only)
-    if (user.role === "customer" && address) {
+    if (user.role === "customer" && address && typeof address === "object") {
       let customerProfile = await CustomerProfile.findOne({ userId: user._id });
       if (!customerProfile) {
         customerProfile = new CustomerProfile({
@@ -806,38 +806,43 @@ router.put("/users/profile", authenticate, async (req: Request, res: Response) =
         });
       }
 
-      // Normalise incoming address shape to match AddressSchema
+      // Normalise incoming address shape to match AddressSchema (all required: name, phone, street, city, state, pincode)
       // Mobile sends: { label, line1, line2, city, state, pincode, phone? }
-      // AddressSchema expects: { name, phone, street, city, state, pincode }
-      const normalizedAddress: any =
-        "label" in address || "line1" in address
+      const raw = address as Record<string, unknown>;
+      const normalizedAddress: { name: string; phone: string; street: string; city: string; state: string; pincode: string } =
+        "label" in raw || "line1" in raw
           ? {
-              name: address.label || "Home",
-              phone: address.phone || user.phone || "",
-              street: [address.line1, address.line2].filter(Boolean).join(", "),
-              city: address.city,
-              state: address.state,
-              pincode: address.pincode,
+              name: String(raw.label ?? raw.name ?? "Home").trim() || "Home",
+              phone: String(raw.phone ?? (user as any).phone ?? "").trim() || "",
+              street: [raw.line1, raw.line2].filter(Boolean).map(String).join(", ").trim() || " ",
+              city: String(raw.city ?? "").trim() || " ",
+              state: String(raw.state ?? "").trim() || " ",
+              pincode: String(raw.pincode ?? "").trim() || " ",
             }
-          : address;
+          : {
+              name: String((raw as any).name ?? "Home").trim() || "Home",
+              phone: String((raw as any).phone ?? (user as any).phone ?? "").trim() || " ",
+              street: String((raw as any).street ?? "").trim() || " ",
+              city: String((raw as any).city ?? "").trim() || " ",
+              state: String((raw as any).state ?? "").trim() || " ",
+              pincode: String((raw as any).pincode ?? "").trim() || " ",
+            };
 
       // Update or add address (match by name/label)
-      const existingIdx = customerProfile.savedAddresses.findIndex((a: any) => {
-        return a.name === normalizedAddress.name;
-      });
-
+      const existingIdx = customerProfile.savedAddresses.findIndex((a: any) => a.name === normalizedAddress.name);
       if (existingIdx >= 0) {
-        customerProfile.savedAddresses[existingIdx] = normalizedAddress;
+        customerProfile.savedAddresses[existingIdx] = normalizedAddress as any;
       } else {
-        customerProfile.savedAddresses.push(normalizedAddress);
+        customerProfile.savedAddresses.push(normalizedAddress as any);
       }
 
       await customerProfile.save();
     }
 
     return res.json({ message: "Profile updated successfully", user });
-  } catch (err) {
-    console.error("[User Profile Update Error]", err);
+  } catch (err: any) {
+    console.error("[User Profile Update Error]", err?.message ?? err);
+    if (err?.errors) console.error("[User Profile Update] Validation errors:", JSON.stringify(err.errors, null, 2));
     return res.status(500).json({ message: "Failed to update profile" });
   }
 });

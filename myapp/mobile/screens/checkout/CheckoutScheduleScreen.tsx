@@ -26,10 +26,10 @@ export default function CheckoutScheduleScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 12, paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.back} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={colors.foreground} />
-        </Pressable>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.md, paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.backRow}>
+          <BackButton onPress={() => navigation.goBack()} />
+        </View>
         <StepIndicator current={3} total={6} />
         <Text style={styles.title}>Delivery / Service</Text>
         <Text style={styles.sub}>Choose when you want your order.</Text>

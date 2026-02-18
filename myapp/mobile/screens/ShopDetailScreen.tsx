@@ -21,7 +21,6 @@ import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { apiGet, apiGetAuth, apiPostAuth, apiDeleteAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useChat, type Conversation } from '../context/ChatContext';
 import { useCall } from '../context/CallContext';
@@ -94,7 +93,6 @@ type Props = ShopDetailParams & {
 export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) {
   const insets = useSafeAreaInsets();
   const width = Dimensions.get('window').width;
-  const { addItem, isInCart, getItemQuantity, updateQuantity, totalItems, shopId: cartShopId } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { startConversation } = useChat();
   const { requestCall, isAgoraConfigured } = useCall();
@@ -182,55 +180,6 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
     } finally {
       setSavingShop(false);
     }
-  }
-
-  function handleAddToCart(product: Product) {
-    const shopName = shop?.name || shop?.shopName || 'Shop';
-    
-    // Warn if cart has items from different shop
-    if (cartShopId && cartShopId !== shopId) {
-      Alert.alert(
-        'Replace Cart?',
-        'Your cart has items from another shop. Adding this will clear your current cart.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Replace',
-            style: 'destructive',
-            onPress: () => {
-              addItem({
-                productId: product._id,
-                shopId,
-                shopName,
-                name: product.name,
-                price: product.discountPrice || product.price,
-                image: product.images?.[0],
-              });
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    addItem({
-      productId: product._id,
-      shopId,
-      shopName,
-      name: product.name,
-      price: product.discountPrice || product.price,
-      image: product.images?.[0],
-    });
-  }
-
-  function handleIncrement(productId: string) {
-    const qty = getItemQuantity(productId);
-    updateQuantity(productId, qty + 1);
-  }
-
-  function handleDecrement(productId: string) {
-    const qty = getItemQuantity(productId);
-    updateQuantity(productId, qty - 1);
   }
 
   function handleToggleWishlist(product: Product) {
@@ -331,7 +280,7 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
     return (
       <View style={styles.container}>
         <View style={[styles.carouselWrap, { paddingTop: insets.top, height: CAROUSEL_HEIGHT + insets.top }]}>
-          <View style={styles.backBtnWrap}>
+          <View style={[styles.backBtnWrap, { top: insets.top + spacing.sm }]}>
             <BackButton onPress={onBack} variant="floating" iconColor={colors.foreground} />
           </View>
         </View>
@@ -381,7 +330,7 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
               />
             ))}
           </View>
-          <View style={styles.backBtnWrap}>
+          <View style={[styles.backBtnWrap, { top: insets.top + spacing.sm }]}>
             <BackButton onPress={onBack} variant="floating" iconColor={colors.foreground} />
           </View>
         </View>
@@ -543,48 +492,7 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
             <Text style={styles.sectionTitle}>Products</Text>
             <View style={styles.productsGrid}>
               {products.map((product) => {
-                const inCart = isInCart(product._id);
-                const quantity = getItemQuantity(product._id);
                 const inWishlist = isInWishlist(product._id);
-                
-                const renderActionButton = () => {
-                  if (!product.isAvailable) {
-                    return (
-                      <View style={styles.unavailableBtn}>
-                        <Text style={styles.unavailableBtnText}>Unavailable</Text>
-                      </View>
-                    );
-                  }
-                  if (inCart) {
-                    return (
-                      <View style={styles.quantityControl}>
-                        <Pressable 
-                          onPress={() => handleDecrement(product._id)} 
-                          style={styles.qtyBtn}
-                        >
-                          <Ionicons name="remove" size={18} color={colors.primary} />
-                        </Pressable>
-                        <Text style={styles.qtyText}>{quantity}</Text>
-                        <Pressable 
-                          onPress={() => handleIncrement(product._id)} 
-                          style={styles.qtyBtn}
-                        >
-                          <Ionicons name="add" size={18} color={colors.primary} />
-                        </Pressable>
-                      </View>
-                    );
-                  }
-                  return (
-                    <Pressable 
-                      onPress={() => handleAddToCart(product)} 
-                      style={({ pressed }) => [styles.addBtn, pressed && styles.btnPressed]}
-                    >
-                      <Ionicons name="add" size={16} color={colors.card} />
-                      <Text style={styles.addBtnText}>Add to Cart</Text>
-                    </Pressable>
-                  );
-                };
-                
                 return (
                   <View key={product._id} style={styles.productCard}>
                     <View style={styles.productImageWrap}>
@@ -621,7 +529,11 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
                       {product.description ? (
                         <Text style={styles.productDescription} numberOfLines={2}>{product.description}</Text>
                       ) : null}
-                      {renderActionButton()}
+                      {!product.isAvailable && (
+                        <View style={styles.unavailableBtn}>
+                          <Text style={styles.unavailableBtnText}>Unavailable</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 );
