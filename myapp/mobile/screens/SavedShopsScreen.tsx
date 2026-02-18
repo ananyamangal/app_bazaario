@@ -30,6 +30,10 @@ type SavedShop = {
   categories?: string[];
   ratingAverage?: number;
   reviewCount?: number;
+   // Basic location fields from backend
+  addressLine?: string;
+  city?: string;
+  state?: string;
 };
 
 type Props = {
@@ -90,6 +94,15 @@ export default function SavedShopsScreen({ onBack, onViewShop }: Props) {
 
   const displayName = (s: SavedShop) => s.shopName ?? s.name ?? 'Shop';
 
+  const formatLocation = (s: SavedShop): string | null => {
+    const parts: string[] = [];
+    if (s.addressLine) parts.push(s.addressLine);
+    if (s.city) parts.push(s.city);
+    if (s.state) parts.push(s.state);
+    if (parts.length === 0) return null;
+    return parts.join(', ');
+  };
+
   return (
     <View style={styles.container}>
       <ScreenHeader onBack={onBack} title="Saved Shops" />
@@ -135,6 +148,12 @@ export default function SavedShopsScreen({ onBack, onViewShop }: Props) {
                 )}
                 <View style={styles.shopInfo}>
                   <Text style={styles.shopName} numberOfLines={2}>{displayName(shop)}</Text>
+                  {formatLocation(shop) && (
+                    <View style={styles.locationRow}>
+                      <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
+                      <Text style={styles.locationText} numberOfLines={1}>{formatLocation(shop)}</Text>
+                    </View>
+                  )}
                   {(shop as any).promotion?.active && (
                     <View style={styles.promoBadge}>
                       <Text style={styles.promoBadgeText}>

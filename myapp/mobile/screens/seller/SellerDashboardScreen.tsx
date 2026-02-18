@@ -118,6 +118,18 @@ export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReview
 
   const shopId = shop?._id;
   const shopName = shop?.name || user?.name || 'My Shop';
+  const shopLocationText = (() => {
+    if (!shop) return null;
+    const a = (shop as any).addressLine as string | undefined;
+    const city = (shop as any).city as string | undefined;
+    const state = (shop as any).state as string | undefined;
+    const parts: string[] = [];
+    if (a) parts.push(a);
+    if (city) parts.push(city);
+    if (state) parts.push(state);
+    if (parts.length === 0) return null;
+    return parts.join(', ');
+  })();
 
   // Update local state when shop changes
   useEffect(() => {
@@ -657,6 +669,19 @@ export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReview
           </Pressable>
         </View>
       </View>
+
+      {/* Seller shop location bar (similar to customer location section) */}
+      {shopLocationText && (
+        <View style={styles.locationBar}>
+          <Ionicons name="location-outline" size={16} color={colors.primary} />
+          <View style={styles.locationBarTextWrap}>
+            <Text style={styles.locationBarLabel}>Your shop location</Text>
+            <Text style={styles.locationBarValue} numberOfLines={1}>
+              {shopLocationText}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Shop Banner Section */}
       <Pressable 

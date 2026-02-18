@@ -90,7 +90,20 @@ type Shop = {
     active?: boolean;
   };
   images?: string[];
+  // Basic location fields from backend
+  addressLine?: string;
+  city?: string;
+  state?: string;
 };
+
+function formatShopLocation(shop: Shop): string | null {
+  const parts: string[] = [];
+  if (shop.addressLine) parts.push(shop.addressLine);
+  if (shop.city) parts.push(shop.city);
+  if (shop.state) parts.push(shop.state);
+  if (parts.length === 0) return null;
+  return parts.join(', ');
+}
 
 // Display order and icons for Shop by Category (merged with API categories by name)
 const CATEGORY_DISPLAY: { name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -611,7 +624,9 @@ export default function HomeScreen() {
         {/* Top Stores - entire card is one tap target */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Stores</Text>
-          {shops.map((s) => (
+          {shops.map((s) => {
+            const location = formatShopLocation(s);
+            return (
             <Pressable
               key={s._id}
               onPress={() => handleVisitStore(s)}
@@ -626,6 +641,14 @@ export default function HomeScreen() {
               )}
               <View style={styles.storeInfo} pointerEvents="none">
                 <Text style={styles.storeName}>{s.shopName ?? s.name ?? 'Shop'}</Text>
+                {location && (
+                  <View style={styles.storeLocationRow}>
+                    <Ionicons name="location-outline" size={14} color={colors.mutedForeground} />
+                    <Text style={styles.storeLocationText} numberOfLines={1}>
+                      {location}
+                    </Text>
+                  </View>
+                )}
                 {s.promotion?.active && (
                   <View style={styles.storePromoBadge}>
                     <Text style={styles.storePromoText}>
@@ -645,7 +668,7 @@ export default function HomeScreen() {
                 </View>
               </View>
             </Pressable>
-          ))}
+          );})}
         </View>
       </ScrollView>
 

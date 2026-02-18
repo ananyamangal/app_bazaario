@@ -68,6 +68,10 @@ type ShopDetails = {
   reviews?: ShopReview[];
   returnDays?: number | null;
   exchangeDays?: number | null;
+  // Basic location fields from backend
+  addressLine?: string;
+  city?: string;
+  state?: string;
 };
 
 type Product = {
@@ -114,6 +118,16 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
   const slidesBase: (string | null)[] =
     (bannerImage ? [bannerImage] : []).concat(shopImages.length > 0 ? shopImages : []);
   const slides = slidesBase.length > 0 ? slidesBase : [null, null, null]; // Use banner/images or show 3 placeholders
+
+  const locationText = (() => {
+    if (!shop) return null;
+    const parts: string[] = [];
+    if (shop.addressLine) parts.push(shop.addressLine);
+    if (shop.city) parts.push(shop.city);
+    if (shop.state) parts.push(shop.state);
+    if (parts.length === 0) return null;
+    return parts.join(', ');
+  })();
 
   useEffect(() => {
     async function loadShop() {
@@ -381,6 +395,19 @@ export default function ShopDetailScreen({ shopId, onBack, onOpenChat }: Props) 
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.desc}>{shop.description ?? ''}</Text>
+          {locationText && (
+            <View style={styles.addressRow}>
+              <View style={styles.addressIconWrap}>
+                <Ionicons name="location-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.addressTextWrap}>
+                <Text style={styles.addressLabel}>Shop address</Text>
+                <Text style={styles.addressValue} numberOfLines={2}>
+                  {locationText}
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* CTAs */}

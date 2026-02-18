@@ -46,6 +46,10 @@ type ShopResult = {
     discountPercent?: number;
     title?: string;
   };
+  // Basic location fields from backend
+  addressLine?: string;
+  city?: string;
+  state?: string;
 };
 
 type MarketResult = {
@@ -115,53 +119,69 @@ export default function SearchResultsScreen({ onBack, initialQuery = '' }: Props
     performSearch(query);
   };
 
-  const renderShop = ({ item }: { item: ShopResult }) => (
-    <Pressable
-      onPress={() => openShopDetail({ shopId: item._id })}
-      style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
-    >
-      <Image
-        source={{ uri: item.banner || item.images?.[0] || '' }}
-        style={styles.shopImage}
-        defaultSource={require('../../assets/icon.png')}
-      />
-      <View style={styles.shopInfo}>
-        <View style={styles.shopHeader}>
-          <Text style={styles.shopName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {item.promotion?.active && (
-            <View style={styles.promoBadge}>
-              <Text style={styles.promoText}>
-                {item.promotion.discountPercent ? `${item.promotion.discountPercent}% OFF` : 'Offer'}
+  const renderShop = ({ item }: { item: ShopResult }) => {
+    const parts: string[] = [];
+    if (item.addressLine) parts.push(item.addressLine);
+    if (item.city) parts.push(item.city);
+    if (item.state) parts.push(item.state);
+    const location = parts.length > 0 ? parts.join(', ') : null;
+
+    return (
+      <Pressable
+        onPress={() => openShopDetail({ shopId: item._id })}
+        style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
+      >
+        <Image
+          source={{ uri: item.banner || item.images?.[0] || '' }}
+          style={styles.shopImage}
+          defaultSource={require('../../assets/icon.png')}
+        />
+        <View style={styles.shopInfo}>
+          <View style={styles.shopHeader}>
+            <Text style={styles.shopName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {item.promotion?.active && (
+              <View style={styles.promoBadge}>
+                <Text style={styles.promoText}>
+                  {item.promotion.discountPercent ? `${item.promotion.discountPercent}% OFF` : 'Offer'}
+                </Text>
+              </View>
+            )}
+          </View>
+          {location && (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {location}
               </Text>
             </View>
           )}
-        </View>
-        {item.description && (
-          <Text style={styles.shopDesc} numberOfLines={1}>
-            {item.description}
-          </Text>
-        )}
-        <View style={styles.shopMeta}>
-          {item.ratingAverage !== undefined && (
-            <View style={styles.ratingRow}>
-              <Ionicons name="star" size={12} color="#FACC15" />
-              <Text style={styles.ratingText}>
-                {item.ratingAverage.toFixed(1)} ({item.reviewCount || 0})
-              </Text>
-            </View>
-          )}
-          {item.categories && item.categories.length > 0 && (
-            <Text style={styles.categoryText} numberOfLines={1}>
-              {item.categories[0]}
+          {item.description && (
+            <Text style={styles.shopDesc} numberOfLines={1}>
+              {item.description}
             </Text>
           )}
+          <View style={styles.shopMeta}>
+            {item.ratingAverage !== undefined && (
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={12} color="#FACC15" />
+                <Text style={styles.ratingText}>
+                  {item.ratingAverage.toFixed(1)} ({item.reviewCount || 0})
+                </Text>
+              </View>
+            )}
+            {item.categories && item.categories.length > 0 && (
+              <Text style={styles.categoryText} numberOfLines={1}>
+                {item.categories[0]}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
-    </Pressable>
-  );
+        <Ionicons name="chevron-forward" size={20} color={colors.mutedForeground} />
+      </Pressable>
+    );
+  };
 
   const renderMarket = ({ item }: { item: MarketResult }) => (
     <Pressable

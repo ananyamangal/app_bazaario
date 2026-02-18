@@ -59,6 +59,10 @@ type Shop = {
     discountPercent?: number | null;
     active?: boolean;
   };
+  // Basic location fields from backend
+  addressLine?: string;
+  city?: string;
+  state?: string;
 };
 
 type Props = CategoryShopsParams & { onBack: () => void };
@@ -172,55 +176,70 @@ export default function CategoryShopsScreen({
           </Pressable>
         </View>
 
-        {filteredShops.map((shop) => (
-          <Pressable
-            key={shop._id}
-            onPress={() => handleVisitShop(shop._id)}
-            style={({ pressed }) => [styles.shopCard, pressed && styles.cardPressed]}
-          >
-            {((shop as any).banner || (shop as any).images?.[0]) ? (
-              <Image
-                source={{ uri: (shop as any).banner || (shop as any).images[0] }}
-                style={styles.shopImage}
-              />
-            ) : (
-              <View style={[styles.shopImage, styles.shopImagePlaceholder]}>
-                <Ionicons name="storefront-outline" size={28} color={colors.mutedForeground} />
-              </View>
-            )}
-            <View style={styles.availablePill}>
-              <Text style={styles.availableText}>{shop.isOpen !== false ? 'Available' : 'Closed'}</Text>
-            </View>
-            <View style={styles.shopBody}>
-              <Text style={styles.shopName}>{shop.shopName ?? shop.name ?? 'Shop'}</Text>
-              {shop.promotion?.active && (
-                <View style={styles.promoBadge}>
-                  <Text style={styles.promoBadgeText}>
-                    {shop.promotion.discountPercent
-                      ? `${shop.promotion.discountPercent}% OFF`
-                      : shop.promotion.title || 'Offer'}
-                  </Text>
+        {filteredShops.map((shop) => {
+          const parts: string[] = [];
+          if (shop.addressLine) parts.push(shop.addressLine);
+          if (shop.city) parts.push(shop.city);
+          if (shop.state) parts.push(shop.state);
+          const location = parts.length > 0 ? parts.join(', ') : null;
+          return (
+            <Pressable
+              key={shop._id}
+              onPress={() => handleVisitShop(shop._id)}
+              style={({ pressed }) => [styles.shopCard, pressed && styles.cardPressed]}
+            >
+              {((shop as any).banner || (shop as any).images?.[0]) ? (
+                <Image
+                  source={{ uri: (shop as any).banner || (shop as any).images[0] }}
+                  style={styles.shopImage}
+                />
+              ) : (
+                <View style={[styles.shopImage, styles.shopImagePlaceholder]}>
+                  <Ionicons name="storefront-outline" size={28} color={colors.mutedForeground} />
                 </View>
               )}
-              <Text style={styles.shopSubtitle}>{shop.description ?? ''}</Text>
-              <View style={styles.shopActions}>
-                <Pressable
-                  onPress={() => handleVisitShop(shop._id)}
-                  style={({ pressed }) => [styles.visitBtn, pressed && styles.btnPressed]}
-                >
-                  <Text style={styles.visitBtnLabel}>Visit Shop</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => handleCallShop(shop._id)}
-                  style={({ pressed }) => [styles.callBtn, pressed && styles.btnPressed]}
-                >
-                  <Ionicons name="call" size={16} color={colors.card} />
-                  <Text style={styles.callBtnLabel}>Call</Text>
-                </Pressable>
+              <View style={styles.availablePill}>
+                <Text style={styles.availableText}>{shop.isOpen !== false ? 'Available' : 'Closed'}</Text>
               </View>
-            </View>
-          </Pressable>
-        ))}
+              <View style={styles.shopBody}>
+                <Text style={styles.shopName}>{shop.shopName ?? shop.name ?? 'Shop'}</Text>
+                {location && (
+                  <View style={styles.shopLocationRow}>
+                    <Ionicons name="location-outline" size={12} color={colors.mutedForeground} />
+                    <Text style={styles.shopLocationText} numberOfLines={1}>
+                      {location}
+                    </Text>
+                  </View>
+                )}
+                {shop.promotion?.active && (
+                  <View style={styles.promoBadge}>
+                    <Text style={styles.promoBadgeText}>
+                      {shop.promotion.discountPercent
+                        ? `${shop.promotion.discountPercent}% OFF`
+                        : shop.promotion.title || 'Offer'}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.shopSubtitle}>{shop.description ?? ''}</Text>
+                <View style={styles.shopActions}>
+                  <Pressable
+                    onPress={() => handleVisitShop(shop._id)}
+                    style={({ pressed }) => [styles.visitBtn, pressed && styles.btnPressed]}
+                  >
+                    <Text style={styles.visitBtnLabel}>Visit Shop</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleCallShop(shop._id)}
+                    style={({ pressed }) => [styles.callBtn, pressed && styles.btnPressed]}
+                  >
+                    <Ionicons name="call" size={16} color={colors.card} />
+                    <Text style={styles.callBtnLabel}>Call</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {/* Filter by market modal */}

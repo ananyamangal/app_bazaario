@@ -13,6 +13,11 @@ const ShopSchema = new mongoose.Schema(
     },
     name: { type: String, required: true },
     description: { type: String, default: "" },
+    // Basic location fields so customers can see where the shop is
+    addressLine: { type: String, default: "" },
+    city: { type: String, default: "" },
+    state: { type: String, default: "" },
+    pincode: { type: String, default: "" },
     categories: [{ type: String }],
     images: [{ type: String }],
     banner: { type: String, default: null },

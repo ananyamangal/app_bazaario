@@ -672,6 +672,9 @@ router.post("/auth/register-seller", async (req: Request, res: Response) => {
       marketId: marketDoc._id,
       name: shopName,
       description: shopDescription || "",
+      addressLine: shopAddress || "",
+      city: city || marketDoc.city || "",
+      state: marketDoc.state || "Delhi",
       categories: categories || [],
       images: [],
       isActive: true,
@@ -893,7 +896,8 @@ router.get("/me/saved-shops", authenticate, async (req: Request, res: Response) 
     const profile = await CustomerProfile.findOne({ userId: user._id }).populate({
       path: "savedShops",
       model: "Shop",
-      select: "name shopName description images categories ratingAverage reviewCount isActive promotion",
+      // Include basic location fields so we can show address on saved-shop cards
+      select: "name shopName description images categories ratingAverage reviewCount isActive promotion addressLine city state",
     });
     const shops = (profile?.savedShops ?? []).filter((s: any) => s != null && s.isActive !== false);
     return res.json({ shops });
@@ -1151,12 +1155,26 @@ router.get("/categories", async (_req: Request, res: Response) => {
   }
 });
 
-// Shops by market, used from Explore/MarketDetail in future
+// Shops by market, used from Explore/MarketDetail
 router.get("/markets/:marketId/shops", async (req: Request, res: Response) => {
   try {
     const { marketId } = req.params;
-    const shops = await Shop.find({ marketId, isActive: true }).sort({ ratingAverage: -1 });
-    return res.json(shops);
+    const market = await Market.findById(marketId).lean();
+    const shops = await Shop.find({ marketId, isActive: true })
+      .sort({ ratingAverage: -1 })
+      .lean();
+
+    const mapped = shops.map((s: any) => {
+      const city = s.city || (market && market.city) || "";
+      const state = s.state || (market && market.state) || "";
+      return {
+        ...s,
+        city,
+        state,
+      };
+    });
+
+    return res.json(mapped);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to fetch shops" });
@@ -1188,7 +1206,8 @@ router.get("/search", async (req: Request, res: Response) => {
         { categories: { $in: [searchRegex] } },
       ],
     })
-      .select("name description images banner categories ratingAverage reviewCount promotion")
+      // Include basic location fields so search results can show where the shop is
+      .select("name description images banner categories ratingAverage reviewCount promotion addressLine city state")
       .limit(20)
       .lean();
 
@@ -1228,6 +1247,9 @@ router.get("/search", async (req: Request, res: Response) => {
         ratingAverage: s.ratingAverage,
         reviewCount: s.reviewCount,
         promotion: s.promotion,
+        addressLine: s.addressLine,
+        city: s.city,
+        state: s.state,
       })),
       markets: markets.map((m: any) => ({
         _id: m._id,
@@ -1265,8 +1287,24 @@ router.get("/search", async (req: Request, res: Response) => {
 // List all active shops (for HomeScreen featured stores)
 router.get("/shops", async (_req: Request, res: Response) => {
   try {
-    const shops = await Shop.find({ isActive: true }).sort({ ratingAverage: -1 }).limit(10);
-    return res.json(shops);
+    // Include basic market location info for each shop so the app can display city/state
+    const shops = await Shop.find({ isActive: true })
+      .sort({ ratingAverage: -1 })
+      .limit(10)
+      .populate("marketId", "name city state")
+      .lean();
+
+    const mapped = shops.map((s: any) => {
+      const city = s.city || (s.marketId && (s.marketId as any).city) || "";
+      const state = s.state || (s.marketId && (s.marketId as any).state) || "";
+      return {
+        ...s,
+        city,
+        state,
+      };
+    });
+
+    return res.json(mapped);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to fetch shops" });
@@ -1277,11 +1315,18 @@ router.get("/shops", async (_req: Request, res: Response) => {
 router.get("/shops/:shopId", async (req: Request, res: Response) => {
   try {
     const { shopId } = req.params;
-    const shop = await Shop.findById(shopId);
+    // Populate market so we can provide city/state even for older shops
+    const shop = await Shop.findById(shopId).populate("marketId", "name city state").lean();
     if (!shop) {
       return res.status(404).json({ message: "Shop not found" });
     }
-    return res.json(shop);
+    const city = (shop as any).city || ((shop as any).marketId && (shop as any).marketId.city) || "";
+    const state = (shop as any).state || ((shop as any).marketId && (shop as any).marketId.state) || "";
+    return res.json({
+      ...shop,
+      city,
+      state,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to fetch shop" });
@@ -2114,9 +2159,22 @@ router.get("/categories/:categoryId/shops", async (req: Request, res: Response) 
     const shops = await Shop.find({ 
       categories: category.name, 
       isActive: true 
-    }).sort({ ratingAverage: -1 });
+    })
+      .sort({ ratingAverage: -1 })
+      .populate("marketId", "city state")
+      .lean();
+
+    const mapped = shops.map((s: any) => {
+      const city = s.city || (s.marketId && (s.marketId as any).city) || "";
+      const state = s.state || (s.marketId && (s.marketId as any).state) || "";
+      return {
+        ...s,
+        city,
+        state,
+      };
+    });
     
-    return res.json(shops);
+    return res.json(mapped);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to fetch shops by category" });

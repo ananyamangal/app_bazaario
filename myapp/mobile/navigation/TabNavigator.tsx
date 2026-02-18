@@ -246,13 +246,9 @@ export default function TabNavigator() {
       return (
         <CategoryListScreen
           onBack={value.goBack}
-          onSelectCategory={(categoryId, categoryLabel) => {
+          onOpenShop={(shopId) => {
             value.goBack();
-            if (categoryId) {
-              value.openCategoryShops({ categoryId, categoryLabel });
-            } else {
-              value.openSearchResults(categoryLabel);
-            }
+            setOverlayStack((s) => [...s, { type: 'ShopDetail', params: { shopId } }]);
           }}
         />
       );
