@@ -3,6 +3,7 @@ import {
   Image,
   ImageSourcePropType,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -76,6 +77,7 @@ type Category = {
   _id: string;
   name: string;
   icon?: string;
+  shopCount?: number;
 };
 
 type Shop = {
@@ -84,40 +86,62 @@ type Shop = {
   shopName?: string;
   description?: string;
   ratingAverage?: number;
+  reviewCount?: number;
   promotion?: {
     title?: string | null;
     discountPercent?: number | null;
     active?: boolean;
   };
   images?: string[];
-  // Basic location fields from backend
   addressLine?: string;
   city?: string;
   state?: string;
+  pincode?: string;
+  marketId?: { _id?: string; name?: string; city?: string; state?: string };
 };
 
-function formatShopLocation(shop: Shop): string | null {
+/** Full address for modal and opening in maps */
+function getFullAddress(shop: Shop): string {
   const parts: string[] = [];
   if (shop.addressLine) parts.push(shop.addressLine);
   if (shop.city) parts.push(shop.city);
   if (shop.state) parts.push(shop.state);
-  if (parts.length === 0) return null;
-  return parts.join(', ');
+  if (shop.pincode) parts.push(shop.pincode);
+  return parts.length === 0 ? '' : parts.join(', ');
 }
 
-// Display order and icons for Shop by Category (merged with API categories by name)
+/** Market name only for Top Stores card (e.g. "Lajpat Nagar") */
+function getMarketDisplay(shop: Shop): string | null {
+  const name = (shop.marketId as any)?.name ?? shop.marketId?.name;
+  if (name) return name;
+  if (shop.city) return shop.city;
+  return null;
+}
+
+function openShopInMaps(shop: Shop) {
+  const address = getFullAddress(shop);
+  openAddressInMaps(address);
+}
+
+function openAddressInMaps(address: string) {
+  if (!address.trim()) return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  Linking.openURL(url).catch(() => {});
+}
+
+// Display order: priority 7 first, then rest (same order on Home + Category page)
 const CATEGORY_DISPLAY: { name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { name: 'Jewellery and accessories', icon: 'diamond-outline' },
+  { name: "Women's Western", icon: 'woman-outline' },
+  { name: 'Bags', icon: 'bag-outline' },
+  { name: 'Traditional wear', icon: 'flower-outline' },
+  { name: 'Kids and toys', icon: 'happy-outline' },
+  { name: 'Footwear', icon: 'walk-outline' },
   { name: 'Home decor', icon: 'home-outline' },
+  { name: 'Jewellery and accessories', icon: 'diamond-outline' },
   { name: 'Home appliances', icon: 'desktop-outline' },
   { name: 'Electronics', icon: 'phone-portrait-outline' },
-  { name: 'Kids and toys', icon: 'happy-outline' },
-  { name: 'Bags', icon: 'bag-outline' },
-  { name: 'Footwear', icon: 'walk-outline' },
   { name: 'Beauty and health', icon: 'sparkles-outline' },
   { name: 'Menswear', icon: 'shirt-outline' },
-  { name: 'Traditional wear', icon: 'flower-outline' },
-  { name: "Women's Western", icon: 'woman-outline' },
 ];
 
 // -----------------------------------------------------------------------------
@@ -134,13 +158,14 @@ export default function HomeScreen() {
   const { totalUnread } = useChat();
   const { address, setAddress, savedAddresses } = useCheckout();
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [descriptionModal, setDescriptionModal] = useState<{ shopName: string; description: string; fullAddress: string } | null>(null);
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   // All 11 categories from our list; _id from API when name matches (for navigation)
-  const [mergedCategories, setMergedCategories] = useState<{ _id: string | null; name: string; icon: keyof typeof Ionicons.glyphMap }[]>(() =>
-    CATEGORY_DISPLAY.map((d) => ({ name: d.name, icon: d.icon, _id: null }))
+  const [mergedCategories, setMergedCategories] = useState<{ _id: string | null; name: string; icon: keyof typeof Ionicons.glyphMap; shopCount: number }[]>(() =>
+    CATEGORY_DISPLAY.map((d) => ({ name: d.name, icon: d.icon, _id: null, shopCount: 0 }))
   );
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,12 +194,27 @@ export default function HomeScreen() {
         ]);
         setMarkets(marketsData.slice(0, 5)); // Show up to 5 markets
         setCategories(categoriesData);
-        setShops(shopsData.slice(0, 5)); // Show up to 5 shops
+        // Top stores: sort by popularity (rating desc, then review count desc)
+        const sortedShops = [...shopsData]
+          .sort((a, b) => {
+            const ra = a.ratingAverage ?? 0;
+            const rb = b.ratingAverage ?? 0;
+            if (rb !== ra) return rb - ra;
+            return (b.reviewCount ?? 0) - (a.reviewCount ?? 0);
+          })
+          .slice(0, 5);
+        setShops(sortedShops);
         const normalized = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
-        // Always show all 11 categories; use API _id when name matches so tap can open category shops
+        // Merge display categories with API (with shopCount); sort by shop count desc
+        // Keep CATEGORY_DISPLAY order (priority 7 first, then rest)
         const merged = CATEGORY_DISPLAY.map((d) => {
-          const match = categoriesData.find((c) => normalized(c.name) === normalized(d.name));
-          return { name: d.name, icon: d.icon, _id: match ? match._id : null };
+          const match = categoriesData.find((c: Category) => normalized(c.name) === normalized(d.name));
+          return {
+            name: d.name,
+            icon: d.icon,
+            _id: match ? match._id : null,
+            shopCount: match?.shopCount ?? 0,
+          };
         });
         setMergedCategories(merged);
       } catch (e) {
@@ -621,11 +661,13 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* Top Stores - entire card is one tap target */}
+        {/* Top Stores - card tap opens shop; no location in list; Open in Maps only in Read more modal */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Top Stores</Text>
           {shops.map((s) => {
-            const location = formatShopLocation(s);
+            const desc = s.description ?? '';
+            const showReadMore = desc.length > 0;
+            const fullAddress = getFullAddress(s);
             return (
             <Pressable
               key={s._id}
@@ -639,26 +681,33 @@ export default function HomeScreen() {
               ) : (
                 <View style={styles.storeImage} />
               )}
-              <View style={styles.storeInfo} pointerEvents="none">
-                <Text style={styles.storeName}>{s.shopName ?? s.name ?? 'Shop'}</Text>
-                {location && (
-                  <View style={styles.storeLocationRow}>
-                    <Ionicons name="location-outline" size={14} color={colors.mutedForeground} />
-                    <Text style={styles.storeLocationText} numberOfLines={1}>
-                      {location}
-                    </Text>
-                  </View>
-                )}
-                {s.promotion?.active && (
-                  <View style={styles.storePromoBadge}>
-                    <Text style={styles.storePromoText}>
-                      {s.promotion.discountPercent
-                        ? `${s.promotion.discountPercent}% OFF`
-                        : s.promotion.title || 'Offer'}
-                    </Text>
-                  </View>
-                )}
-                <Text style={styles.storeDesc}>{s.description ?? ''}</Text>
+              <View style={styles.storeInfo}>
+                <View style={styles.storeNameRow}>
+                  <Text style={styles.storeName} numberOfLines={1}>{s.shopName ?? s.name ?? 'Shop'}</Text>
+                  {s.promotion?.active && (
+                    <View style={styles.storePromoBadge}>
+                      <Text style={styles.storePromoText}>
+                        {s.promotion.discountPercent
+                          ? `${s.promotion.discountPercent}% OFF`
+                          : s.promotion.title || 'Offer'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.storeDescRow}>
+                  <Text style={styles.storeDesc} numberOfLines={2} ellipsizeMode="tail">
+                    {desc || ' '}
+                  </Text>
+                  {showReadMore && (
+                    <Pressable
+                      onPress={(e) => { e?.stopPropagation?.(); setDescriptionModal({ shopName: s.shopName ?? s.name ?? 'Shop', description: desc, fullAddress }); }}
+                      style={styles.readMoreHitSlop}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.readMoreText}>Read more</Text>
+                    </Pressable>
+                  )}
+                </View>
                 <Text style={styles.storeRating}>⭐ Rating {(s.ratingAverage ?? 4.5).toFixed(1)}</Text>
               </View>
               <View style={styles.storeActions} pointerEvents="none">
@@ -703,6 +752,41 @@ export default function HomeScreen() {
               <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
               <Text style={styles.addressModalAddText}>Add new address</Text>
             </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Store description Read more modal */}
+      <Modal
+        visible={!!descriptionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDescriptionModal(null)}
+      >
+        <Pressable style={styles.addressModalOverlay} onPress={() => setDescriptionModal(null)}>
+          <View style={styles.descModalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.addressModalHandle} />
+            {descriptionModal && (
+              <>
+                <Text style={styles.descModalTitle}>{descriptionModal.shopName}</Text>
+                {descriptionModal.fullAddress ? (
+                  <Pressable
+                    onPress={() => openAddressInMaps(descriptionModal.fullAddress)}
+                    style={styles.descModalAddressRow}
+                  >
+                    <Ionicons name="location-outline" size={18} color={colors.primary} />
+                    <Text style={styles.descModalAddressText}>{descriptionModal.fullAddress}</Text>
+                    <Text style={styles.descModalMapsLink}>Open in Maps</Text>
+                  </Pressable>
+                ) : null}
+                <ScrollView style={styles.descModalScroll} showsVerticalScrollIndicator>
+                  <Text style={styles.descModalBody}>{descriptionModal.description}</Text>
+                </ScrollView>
+                <Pressable onPress={() => setDescriptionModal(null)} style={styles.descModalCloseBtn}>
+                  <Text style={styles.descModalCloseText}>Close</Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </Pressable>
       </Modal>
@@ -801,6 +885,49 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
   },
   addressModalAddText: { fontSize: 16, fontWeight: '600', color: colors.primary },
+
+  descModalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingHorizontal: HORIZONTAL_PADDING,
+    paddingBottom: 34,
+    maxHeight: '70%',
+  },
+  descModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.foreground,
+    marginBottom: 12,
+  },
+  descModalAddressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: colors.background,
+    borderRadius: radius.lg,
+  },
+  descModalAddressText: { flex: 1, fontSize: 14, color: colors.mutedForeground, marginRight: 8 },
+  descModalMapsLink: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  descModalScroll: {
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  descModalBody: {
+    fontSize: 15,
+    color: colors.mutedForeground,
+    lineHeight: 22,
+  },
+  descModalCloseBtn: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+  },
+  descModalCloseText: { fontSize: 16, fontWeight: '600', color: colors.card },
 
   headerContainer: {
     backgroundColor: colors.card,
@@ -1095,6 +1222,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'stretch',
+    height: 96,
+    minHeight: 96,
     backgroundColor: colors.card,
     borderRadius: radius.lg,
     padding: 12,
@@ -1112,11 +1241,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.muted,
     marginRight: 12,
   },
-  storeInfo: { flex: 1 },
-  storeName: { fontSize: 16, fontWeight: '700', color: colors.foreground, marginBottom: 2 },
+  storeInfo: { flex: 1, minWidth: 0, overflow: 'hidden', justifyContent: 'center' },
+  storeNameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: 8, minWidth: 0 },
+  storeName: { fontSize: 16, fontWeight: '700', color: colors.foreground, flex: 1, minWidth: 0 },
+  storeDescRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginBottom: 2 },
+  readMoreHitSlop: { marginLeft: 4 },
+  readMoreText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
   storePromoBadge: {
-    alignSelf: 'flex-start',
-    marginBottom: 4,
+    flexShrink: 0,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.xxl,
@@ -1127,7 +1259,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.primary,
   },
-  storeDesc: { fontSize: 13, color: colors.mutedForeground, marginBottom: 4 },
+  storeDesc: { fontSize: 13, color: colors.mutedForeground, flex: 1 },
   storeRating: { fontSize: 12, color: colors.mutedForeground },
   storeActions: { marginLeft: 8 },
   storeVisitPill: {

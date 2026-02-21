@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 
-export type PaymentProvider = "Razorpay";
+export type PaymentProvider = "Razorpay" | "PhonePe";
 
 export interface IPayment extends Document {
   orderId: Types.ObjectId;
@@ -24,7 +24,7 @@ const PaymentSchema = new Schema<IPayment>(
     },
     provider: {
       type: String,
-      enum: ["Razorpay"],
+      enum: ["Razorpay", "PhonePe"],
       required: true
     },
     paymentIntentId: { type: String, required: true, unique: true },

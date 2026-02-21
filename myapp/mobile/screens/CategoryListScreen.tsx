@@ -7,19 +7,19 @@ import { colors } from '../theme/colors';
 import { radius, spacing } from '../theme/spacing';
 import { apiGet } from '../api/client';
 
-// Same display order and icons as HomeScreen
+// Same display order and icons as HomeScreen (priority 7 first, then rest)
 const CATEGORY_DISPLAY: { name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { name: 'Jewellery and accessories', icon: 'diamond-outline' },
+  { name: "Women's Western", icon: 'woman-outline' },
+  { name: 'Bags', icon: 'bag-outline' },
+  { name: 'Traditional wear', icon: 'flower-outline' },
+  { name: 'Kids and toys', icon: 'happy-outline' },
+  { name: 'Footwear', icon: 'walk-outline' },
   { name: 'Home decor', icon: 'home-outline' },
+  { name: 'Jewellery and accessories', icon: 'diamond-outline' },
   { name: 'Home appliances', icon: 'desktop-outline' },
   { name: 'Electronics', icon: 'phone-portrait-outline' },
-  { name: 'Kids and toys', icon: 'happy-outline' },
-  { name: 'Bags', icon: 'bag-outline' },
-  { name: 'Footwear', icon: 'walk-outline' },
   { name: 'Beauty and health', icon: 'sparkles-outline' },
   { name: 'Menswear', icon: 'shirt-outline' },
-  { name: 'Traditional wear', icon: 'flower-outline' },
-  { name: "Women's Western", icon: 'woman-outline' },
 ];
 
 type ApiCategory = { _id: string; name: string };
@@ -233,7 +233,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   leftNav: {
-    width: 110,
+    width: 182,
+    minWidth: 182,
     backgroundColor: colors.muted,
     borderRightWidth: 1,
     borderRightColor: colors.border,
@@ -264,6 +265,7 @@ const styles = StyleSheet.create({
   },
   leftItemLabel: {
     flex: 1,
+    minWidth: 0,
     fontSize: 13,
     color: colors.mutedForeground,
   },

@@ -19,6 +19,8 @@ import { ScheduledCallback } from "./models/scheduledCallback.model";
 import { Conversation } from "./models/conversation.model";
 import { Message } from "./models/message.model";
 import { Notification } from "./models/notification.model";
+import { Payment } from "./models/payment.model";
+import { Payment } from "./models/payment.model";
 import cloudinary from "./config/cloudinary";
 import { authenticate } from "./middlewares/auth.middleware";
 import admin from "./config/firebase";
@@ -30,6 +32,8 @@ import {
   unregisterFcmToken,
   sendIncomingCallPush,
 } from "./services/notification.service";
+import { createPhonePePaymentForOrder, handlePhonePeCallback } from "./services/phonepe.service";
+import { createPhonePePaymentForOrder, handlePhonePeCallback } from "./services/phonepe.service";
 import {
   generateAgoraToken,
   generateChannelName,
@@ -1142,13 +1146,21 @@ router.get("/markets", async (_req: Request, res: Response) => {
   }
 });
 
-// Public categories list used by Home screen
+// Public categories list used by Home screen; sorted by shop count (desc)
 router.get("/categories", async (_req: Request, res: Response) => {
   try {
-    const categories = await Category.find({ isActive: true }).sort({
-      name: 1
-    });
-    return res.json(categories);
+    const categories = await Category.find({ isActive: true }).lean();
+    const withCount = await Promise.all(
+      categories.map(async (c: any) => {
+        const shopCount = await Shop.countDocuments({
+          categories: c.name,
+          isActive: true,
+        });
+        return { ...c, shopCount };
+      })
+    );
+    withCount.sort((a: any, b: any) => (b.shopCount || 0) - (a.shopCount || 0));
+    return res.json(withCount);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to fetch categories" });
@@ -3392,6 +3404,108 @@ router.put("/orders/:orderId/cancel", authenticate, async (req: Request, res: Re
   } catch (err: any) {
     console.error("[Cancel Order Error]", err);
     return res.status(500).json({ message: "Failed to cancel order", error: err.message });
+  }
+});
+
+// =============================================================================
+// PAYMENTS - PHONEPE
+// =============================================================================
+
+// Initiate PhonePe payment for an existing order
+router.post("/payments/phonepe/initiate", authenticate, async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.body as { orderId?: string };
+    if (!orderId) {
+      return res.status(400).json({ message: "orderId is required" });
+    }
+
+    const firebaseUser = (req as any).user;
+    const uid = firebaseUser.uid;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.customerId.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized to pay for this order" });
+    }
+
+    if (order.paymentStatus === "paid") {
+      return res.status(400).json({ message: "Order is already paid" });
+    }
+
+    const customerPhone = order.deliveryAddress?.phone || (user as any)?.phone || "";
+    const { redirectUrl, merchantTransactionId } = await createPhonePePaymentForOrder(order, customerPhone);
+
+    return res.json({
+      message: "PhonePe payment initiated",
+      redirectUrl,
+      transactionId: merchantTransactionId,
+    });
+  } catch (err: any) {
+    console.error("[PhonePe Initiate Error]", err);
+    return res.status(500).json({ message: err.message || "Failed to initiate PhonePe payment" });
+  }
+});
+
+// PhonePe callback (configured in PhonePe dashboard)
+router.post("/payments/phonepe/callback", async (req: Request, res: Response) => {
+  try {
+    const xVerify = (req.headers["x-verify"] || req.headers["x-VERIFY"] || req.headers["X-VERIFY"]) as string | undefined;
+    await handlePhonePeCallback(req.body, xVerify);
+    return res.json({ success: true });
+  } catch (err: any) {
+    console.error("[PhonePe Callback Error]", err);
+    return res.status(400).json({ success: false, message: err.message || "Callback verification failed" });
+  }
+});
+
+// Simple status endpoint so mobile app can poll payment status by order
+router.get("/payments/phonepe/status/:orderId", authenticate, async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.params;
+
+    const firebaseUser = (req as any).user;
+    const uid = firebaseUser.uid;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const isCustomer = order.customerId.toString() === user._id.toString();
+    const isSeller = order.sellerId.toString() === user._id.toString();
+    if (!isCustomer && !isSeller) {
+      return res.status(403).json({ message: "Not authorized to view this payment" });
+    }
+
+    const payment = await Payment.findOne({ orderId: order._id, provider: "PhonePe" });
+
+    return res.json({
+      orderId: order._id.toString(),
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      payment: payment
+        ? {
+            status: payment.status,
+            amount: payment.amount,
+            currency: payment.currency,
+            paymentIntentId: payment.paymentIntentId,
+          }
+        : null,
+    });
+  } catch (err: any) {
+    console.error("[PhonePe Status Error]", err);
+    return res.status(500).json({ message: err.message || "Failed to fetch payment status" });
   }
 });
 

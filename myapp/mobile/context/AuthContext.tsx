@@ -346,8 +346,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Don't block app forever if backend is slow (e.g. Render cold start)
-  const AUTH_ME_TIMEOUT_MS = 12_000;
+  // Don't block app forever if backend is slow (e.g. Render cold start can take 30–60s)
+  const AUTH_ME_TIMEOUT_MS = 35_000;
 
   // Listen to Firebase auth state changes
   useEffect(() => {

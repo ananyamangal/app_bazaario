@@ -16,7 +16,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://172.16.2.34:5007/api",
+        "EXPO_PUBLIC_API_BASE_URL": "https://app-bazaario.onrender.com/api",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCVjnNmds7kdXkoouK2xbAY8rN9J4mafeY",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "bazaario-74850.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "bazaario-74850",

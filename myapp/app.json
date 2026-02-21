@@ -5,7 +5,7 @@
     "scheme": "bazaario",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/bazaario-logo.png",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
@@ -27,7 +27,7 @@
         "android.permission.BLUETOOTH"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon-square.png",
+        "foregroundImage": "./assets/bazaario-logo.png",
         "backgroundColor": "#ffffff"
       }
     },
