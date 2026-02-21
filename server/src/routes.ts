@@ -20,7 +20,6 @@ import { Conversation } from "./models/conversation.model";
 import { Message } from "./models/message.model";
 import { Notification } from "./models/notification.model";
 import { Payment } from "./models/payment.model";
-import { Payment } from "./models/payment.model";
 import cloudinary from "./config/cloudinary";
 import { authenticate } from "./middlewares/auth.middleware";
 import admin from "./config/firebase";
@@ -32,7 +31,6 @@ import {
   unregisterFcmToken,
   sendIncomingCallPush,
 } from "./services/notification.service";
-import { createPhonePePaymentForOrder, handlePhonePeCallback } from "./services/phonepe.service";
 import { createPhonePePaymentForOrder, handlePhonePeCallback } from "./services/phonepe.service";
 import {
   generateAgoraToken,
