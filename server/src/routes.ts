@@ -1870,6 +1870,36 @@ router.get("/shops/:shopId/reels", async (req: Request, res: Response) => {
   }
 });
 
+// Delete a shop reel (seller only)
+router.delete("/shops/:shopId/reels/:reelId", authenticate, async (req: Request, res: Response) => {
+  try {
+    const { shopId, reelId } = req.params;
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+    const firebaseUser = (req as any).user;
+    const uid = firebaseUser.uid;
+    const user = await User.findOne({ uid });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (shop.sellerId.toString() !== user._id.toString()) {
+      return res.status(403).json({ message: "Unauthorized: You can only delete reels from your own shop" });
+    }
+    const reel = shop.reels.id(reelId);
+    if (!reel) {
+      return res.status(404).json({ message: "Reel not found" });
+    }
+    reel.remove();
+    await shop.save();
+    return res.json({ message: "Reel deleted" });
+  } catch (err) {
+    console.error("[Delete Reel Error]", err);
+    return res.status(500).json({ message: "Failed to delete reel" });
+  }
+});
+
 // Like/Unlike a reel
 router.post("/reels/:reelId/like", authenticate, async (req: Request, res: Response) => {
   try {

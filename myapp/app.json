@@ -27,7 +27,7 @@
         "android.permission.BLUETOOTH"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/bazaario-logo.png",
+        "foregroundImage": "./assets/bazaario-icon-android.png",
         "backgroundColor": "#ffffff"
       }
     },
@@ -42,10 +42,12 @@
         {
           "android": {
             "usesCleartextTraffic": true,
-            "softwareKeyboardLayoutMode": "resize"
+            "softwareKeyboardLayoutMode": "resize",
+            "buildArchs": ["arm64-v8a", "x86_64"]
           }
         }
-      ]
+      ],
+      "./plugins/withAndroidAbi.js"
     ]
   }
 }

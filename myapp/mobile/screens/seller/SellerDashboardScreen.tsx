@@ -537,7 +537,7 @@ export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReview
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: true,
         quality: 0.8,
-        videoMaxDuration: 60, // 60 seconds max
+        videoMaxDuration: 180, // 3 minutes max
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -569,7 +569,7 @@ export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReview
         mediaTypes: ImagePicker.MediaTypeOptions.Videos,
         allowsEditing: true,
         quality: 0.8,
-        videoMaxDuration: 60, // 60 seconds max
+        videoMaxDuration: 180, // 3 minutes max
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
@@ -606,9 +606,13 @@ export default function SellerDashboardScreen({ onOpenReelInsights, onOpenReview
         Alert.alert('Success', 'Reel uploaded successfully!');
         await refreshUser();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SellerDashboard] Failed to upload reel', error);
-      Alert.alert('Upload failed', 'There was a problem uploading your reel. Please try again.');
+      const msg = error?.body?.message || error?.message || 'There was a problem uploading your reel.';
+      const hint = (error?.status === 413 || /payload|too large|limit/i.test(String(msg)))
+        ? ' Try a shorter or smaller video (under ~3 minutes).'
+        : ' Please try again.';
+      Alert.alert('Upload failed', msg + hint);
     } finally {
       setReelUploading(false);
     }

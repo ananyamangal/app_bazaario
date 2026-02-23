@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -19,7 +20,7 @@ import { Video, ResizeMode } from 'expo-av';
 import BackButton from '../../components/BackButton';
 import { colors } from '../../theme/colors';
 import { radius, spacing } from '../../theme/spacing';
-import { apiGet, apiGetAuth } from '../../api/client';
+import { apiGet, apiGetAuth, apiDeleteAuth } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
 // -----------------------------------------------------------------------------
@@ -62,22 +63,55 @@ export default function ReelInsightsScreen({ onBack }: Props) {
   const [selectedReel, setSelectedReel] = useState<Reel | null>(null);
   const [reelComments, setReelComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [deletingReelId, setDeletingReelId] = useState<string | null>(null);
+
+  const loadReels = useCallback(async () => {
+    if (!shop?._id) return;
+    try {
+      setLoading(true);
+      const response = await apiGet<{ reels: Reel[] }>(`/shops/${shop._id}/reels`);
+      setReels(response.reels || []);
+    } catch (error) {
+      console.error('[ReelInsights] Failed to load reels', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [shop?._id]);
 
   useEffect(() => {
-    async function loadReels() {
-      if (!shop?._id) return;
-      try {
-        setLoading(true);
-        const response = await apiGet<{ reels: Reel[] }>(`/shops/${shop._id}/reels`);
-        setReels(response.reels || []);
-      } catch (error) {
-        console.error('[ReelInsights] Failed to load reels', error);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadReels();
-  }, [shop?._id]);
+  }, [loadReels]);
+
+  const handleDeleteReel = useCallback(async (reel: Reel) => {
+    const reelId = reel._id;
+    if (!reelId || !shop?._id) {
+      Alert.alert('Error', 'Cannot delete this reel.');
+      return;
+    }
+    Alert.alert(
+      'Delete reel',
+      'Are you sure you want to remove this reel? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletingReelId(reelId);
+              await apiDeleteAuth(`/shops/${shop._id}/reels/${reelId}`);
+              await loadReels();
+            } catch (error) {
+              console.error('[ReelInsights] Failed to delete reel', error);
+              Alert.alert('Error', 'Failed to delete reel. Please try again.');
+            } finally {
+              setDeletingReelId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [shop?._id, loadReels]);
 
   const openComments = async (reel: Reel) => {
     setSelectedReel(reel);
@@ -167,6 +201,20 @@ export default function ReelInsightsScreen({ onBack }: Props) {
               <View style={styles.analyticsContainer}>
                 <View style={styles.analyticsHeader}>
                   <Text style={styles.reelDate}>Uploaded {formatDate(reel.createdAt)}</Text>
+                  {reel._id ? (
+                    <Pressable
+                      onPress={() => handleDeleteReel(reel)}
+                      disabled={deletingReelId === reel._id}
+                      style={({ pressed }) => [styles.deleteReelButton, pressed && styles.deleteReelButtonPressed]}
+                      hitSlop={8}
+                    >
+                      {deletingReelId === reel._id ? (
+                        <ActivityIndicator size="small" color={colors.destructive} />
+                      ) : (
+                        <Ionicons name="trash-outline" size={22} color={colors.destructive} />
+                      )}
+                    </Pressable>
+                  ) : null}
                 </View>
                 
                 <View style={styles.analyticsGrid}>
@@ -349,11 +397,20 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   analyticsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   reelDate: {
     fontSize: 12,
     color: colors.mutedForeground,
+  },
+  deleteReelButton: {
+    padding: 8,
+  },
+  deleteReelButtonPressed: {
+    opacity: 0.7,
   },
   analyticsGrid: {
     flexDirection: 'row',
