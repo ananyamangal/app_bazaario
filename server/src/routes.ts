@@ -1887,11 +1887,12 @@ router.delete("/shops/:shopId/reels/:reelId", authenticate, async (req: Request,
     if (shop.sellerId.toString() !== user._id.toString()) {
       return res.status(403).json({ message: "Unauthorized: You can only delete reels from your own shop" });
     }
-    const reel = shop.reels.id(reelId);
-    if (!reel) {
+    // Remove reel from the embedded array in a type-safe way
+    const beforeCount = shop.reels.length;
+    shop.reels = shop.reels.filter((r: any) => !(r._id && r._id.toString() === reelId));
+    if (shop.reels.length === beforeCount) {
       return res.status(404).json({ message: "Reel not found" });
     }
-    reel.remove();
     await shop.save();
     return res.json({ message: "Reel deleted" });
   } catch (err) {
