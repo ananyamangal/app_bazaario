@@ -1887,13 +1887,17 @@ router.delete("/shops/:shopId/reels/:reelId", authenticate, async (req: Request,
     if (shop.sellerId.toString() !== user._id.toString()) {
       return res.status(403).json({ message: "Unauthorized: You can only delete reels from your own shop" });
     }
-    // Remove reel from the embedded array in a type-safe way
-    const beforeCount = shop.reels.length;
-    shop.reels = shop.reels.filter((r: any) => !(r._id && r._id.toString() === reelId));
-    if (shop.reels.length === beforeCount) {
+
+    // Use MongoDB $pull so we don't mutate the typed DocumentArray directly
+    const result = await Shop.updateOne(
+      { _id: shopId, "reels._id": reelId },
+      { $pull: { reels: { _id: reelId } } }
+    );
+
+    if (result.modifiedCount === 0) {
       return res.status(404).json({ message: "Reel not found" });
     }
-    await shop.save();
+
     return res.json({ message: "Reel deleted" });
   } catch (err) {
     console.error("[Delete Reel Error]", err);
